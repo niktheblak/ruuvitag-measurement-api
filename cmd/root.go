@@ -24,25 +24,19 @@ var rootCmd = &cobra.Command{
 	Use:          "temperature-api",
 	Short:        "REST API for getting current temperatures",
 	SilenceUsage: true,
-	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		db := viper.GetString("influxdb.database")
-		meas := viper.GetString("influxdb.measurement")
-		var err error
-		svc, err = service.New(
-			viper.GetString("influxdb.addr"),
-			viper.GetString("influxdb.username"),
-			viper.GetString("influxdb.password"),
-			db,
-			meas,
-		)
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) (err error) {
+		svc, err = service.New(service.Config{
+			Addr:        viper.GetString("influxdb.addr"),
+			Username:    viper.GetString("influxdb.username"),
+			Password:    viper.GetString("influxdb.password"),
+			Database:    viper.GetString("influxdb.database"),
+			Measurement: viper.GetString("influxdb.measurement"),
+		})
 		if err != nil {
-			return err
+			return
 		}
 		err = svc.Ping()
-		if err != nil {
-			return err
-		}
-		return nil
+		return
 	},
 	PersistentPostRun: func(cmd *cobra.Command, args []string) {
 		if client != nil {

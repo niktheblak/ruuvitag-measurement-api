@@ -10,10 +10,18 @@ import (
 )
 
 type Measurement struct {
-	Timestamp   time.Time
-	Temperature float64
-	Humidity    float64
-	Pressure    float64
+	Timestamp   time.Time `json:"ts"`
+	Temperature float64   `json:"temperature"`
+	Humidity    float64   `json:"humidity"`
+	Pressure    float64   `json:"pressure"`
+}
+
+type Config struct {
+	Addr        string
+	Username    string
+	Password    string
+	Database    string
+	Measurement string
 }
 
 type Service struct {
@@ -22,20 +30,19 @@ type Service struct {
 	query    string
 }
 
-func New(addr, username, password, database, measurement string) (*Service, error) {
-	cfg := influxdb.HTTPConfig{
-		Addr:     addr,
-		Username: username,
-		Password: password,
-	}
-	client, err := influxdb.NewHTTPClient(cfg)
+func New(cfg Config) (*Service, error) {
+	client, err := influxdb.NewHTTPClient(influxdb.HTTPConfig{
+		Addr:     cfg.Addr,
+		Username: cfg.Username,
+		Password: cfg.Password,
+	})
 	if err != nil {
 		return nil, err
 	}
-	q := fmt.Sprintf("SELECT temperature, humidity, pressure FROM %s GROUP BY \"name\" LIMIT 1", measurement)
+	q := fmt.Sprintf("SELECT temperature, humidity, pressure FROM %s GROUP BY \"name\" LIMIT 1", cfg.Measurement)
 	return &Service{
 		client:   client,
-		database: database,
+		database: cfg.Database,
 		query:    q,
 	}, nil
 }
