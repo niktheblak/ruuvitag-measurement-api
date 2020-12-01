@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"sort"
+	"strconv"
 
 	"github.com/julienschmidt/httprouter"
 
@@ -26,7 +28,21 @@ func (s *Server) Current(w http.ResponseWriter, r *http.Request, _ httprouter.Pa
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("ETag", etag(m))
 	if err := json.NewEncoder(w).Encode(m); err != nil {
 		log.Fatal(err)
 	}
+}
+
+func etag(measurements map[string]service.Measurement) string {
+	if len(measurements) == 0 {
+		return ""
+	}
+	var timestamps []float64
+	for _, m := range measurements {
+		timestamps = append(timestamps, float64(m.Timestamp.Unix()))
+	}
+	sort.Float64s(timestamps)
+	newest := int64(timestamps[len(timestamps)-1])
+	return strconv.FormatInt(newest, 16)
 }
