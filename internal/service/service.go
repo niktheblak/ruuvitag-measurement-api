@@ -22,6 +22,7 @@ type Config struct {
 	Password    string
 	Database    string
 	Measurement string
+	Timeout     time.Duration
 }
 
 type Service struct {
@@ -35,6 +36,7 @@ func New(cfg Config) (*Service, error) {
 		Addr:     cfg.Addr,
 		Username: cfg.Username,
 		Password: cfg.Password,
+		Timeout:  cfg.Timeout,
 	})
 	if err != nil {
 		return nil, err

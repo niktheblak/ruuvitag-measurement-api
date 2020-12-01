@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	influxdb "github.com/influxdata/influxdb1-client/v2"
 	"github.com/julienschmidt/httprouter"
@@ -31,6 +32,7 @@ var rootCmd = &cobra.Command{
 			Password:    viper.GetString("influxdb.password"),
 			Database:    viper.GetString("influxdb.database"),
 			Measurement: viper.GetString("influxdb.measurement"),
+			Timeout:     10 * time.Second,
 		})
 		if err != nil {
 			return
