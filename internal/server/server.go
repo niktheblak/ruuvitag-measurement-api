@@ -9,14 +9,14 @@ import (
 
 	"github.com/julienschmidt/httprouter"
 
-	"github.com/niktheblak/temperature-api/internal/service"
+	"github.com/niktheblak/temperature-api/pkg/measurement"
 )
 
 type Server struct {
-	Service *service.Service
+	Service measurement.Service
 }
 
-func New(svc *service.Service) *Server {
+func New(svc measurement.Service) *Server {
 	return &Server{Service: svc}
 }
 
@@ -35,7 +35,7 @@ func (s *Server) Current(w http.ResponseWriter, r *http.Request, _ httprouter.Pa
 	}
 }
 
-func etag(measurements map[string]service.Measurement) string {
+func etag(measurements map[string]measurement.Measurement) string {
 	if len(measurements) == 0 {
 		return ""
 	}

@@ -13,12 +13,12 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/niktheblak/temperature-api/internal/server"
-	"github.com/niktheblak/temperature-api/internal/service"
+	"github.com/niktheblak/temperature-api/pkg/measurement"
 )
 
 var (
 	client influxdb.Client
-	svc    *service.Service
+	svc    measurement.Service
 )
 
 var rootCmd = &cobra.Command{
@@ -26,7 +26,7 @@ var rootCmd = &cobra.Command{
 	Short:        "REST API for getting current temperatures",
 	SilenceUsage: true,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) (err error) {
-		svc, err = service.New(service.Config{
+		svc, err = measurement.New(measurement.Config{
 			Addr:        viper.GetString("influxdb.addr"),
 			Username:    viper.GetString("influxdb.username"),
 			Password:    viper.GetString("influxdb.password"),

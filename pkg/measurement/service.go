@@ -1,4 +1,4 @@
-package service
+package measurement
 
 import (
 	"context"
@@ -9,13 +9,7 @@ import (
 	influxdb "github.com/influxdata/influxdb1-client/v2"
 )
 
-type Measurement struct {
-	Timestamp   time.Time `json:"ts"`
-	Temperature float64   `json:"temperature"`
-	Humidity    float64   `json:"humidity"`
-	Pressure    float64   `json:"pressure"`
-}
-
+// Config is the InfluxDB connection config
 type Config struct {
 	Addr        string
 	Username    string
@@ -25,13 +19,23 @@ type Config struct {
 	Timeout     time.Duration
 }
 
-type Service struct {
+type Pinger interface {
+	Ping() error
+}
+
+type Service interface {
+	Pinger
+	Current(ctx context.Context) (map[string]Measurement, error)
+}
+
+type service struct {
 	client   influxdb.Client
 	database string
 	query    string
 }
 
-func New(cfg Config) (*Service, error) {
+// New creates a new instance of the service using the given config
+func New(cfg Config) (Service, error) {
 	client, err := influxdb.NewHTTPClient(influxdb.HTTPConfig{
 		Addr:     cfg.Addr,
 		Username: cfg.Username,
@@ -42,14 +46,15 @@ func New(cfg Config) (*Service, error) {
 		return nil, err
 	}
 	q := fmt.Sprintf("SELECT temperature, humidity, pressure FROM %s GROUP BY \"name\" LIMIT 1", cfg.Measurement)
-	return &Service{
+	return &service{
 		client:   client,
 		database: cfg.Database,
 		query:    q,
 	}, nil
 }
 
-func (s *Service) Current(ctx context.Context) (map[string]Measurement, error) {
+// Current returns current measurements
+func (s *service) Current(ctx context.Context) (map[string]Measurement, error) {
 	q := influxdb.NewQuery(s.query, s.database, "")
 	res, err := s.client.Query(q)
 	if err != nil {
@@ -80,7 +85,8 @@ func (s *Service) Current(ctx context.Context) (map[string]Measurement, error) {
 	return m, res.Error()
 }
 
-func (s *Service) Ping() error {
+// Ping checks that the server connection works
+func (s *service) Ping() error {
 	_, _, err := s.client.Ping(5 * time.Second)
 	return err
 }
