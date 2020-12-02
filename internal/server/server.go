@@ -28,6 +28,7 @@ func (s *Server) Current(w http.ResponseWriter, r *http.Request, _ httprouter.Pa
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store, max-age=0")
 	w.Header().Set("ETag", etag(m))
 	if err := json.NewEncoder(w).Encode(m); err != nil {
 		log.Fatal(err)
