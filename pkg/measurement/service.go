@@ -45,7 +45,7 @@ func New(cfg Config) (Service, error) {
 	if err != nil {
 		return nil, err
 	}
-	q := fmt.Sprintf("SELECT temperature, humidity, pressure FROM %s GROUP BY \"name\" LIMIT 1", cfg.Measurement)
+	q := fmt.Sprintf("SELECT temperature, humidity, pressure FROM %s GROUP BY \"name\" ORDER BY \"time\" DESC LIMIT 1", cfg.Measurement)
 	return &service{
 		client:   client,
 		database: cfg.Database,
