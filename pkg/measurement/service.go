@@ -23,8 +23,13 @@ type Pinger interface {
 	Ping() error
 }
 
+type Closer interface {
+	Close() error
+}
+
 type Service interface {
 	Pinger
+	Closer
 	Current(ctx context.Context) (map[string]Measurement, error)
 }
 
@@ -89,6 +94,10 @@ func (s *service) Current(ctx context.Context) (map[string]Measurement, error) {
 func (s *service) Ping() error {
 	_, _, err := s.client.Ping(5 * time.Second)
 	return err
+}
+
+func (s *service) Close() error {
+	return s.client.Close()
 }
 
 func parseTimestamp(v interface{}) time.Time {

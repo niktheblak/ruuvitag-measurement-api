@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	influxdb "github.com/influxdata/influxdb1-client/v2"
 	"github.com/julienschmidt/httprouter"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -16,36 +15,27 @@ import (
 	"github.com/niktheblak/temperature-api/pkg/measurement"
 )
 
-var (
-	client influxdb.Client
-	svc    measurement.Service
-)
-
 var rootCmd = &cobra.Command{
 	Use:          "temperature-api",
 	Short:        "REST API for getting current temperatures",
 	SilenceUsage: true,
-	PersistentPreRunE: func(cmd *cobra.Command, args []string) (err error) {
-		svc, err = measurement.New(measurement.Config{
+	RunE: func(cmd *cobra.Command, args []string) error {
+		cfg := measurement.Config{
 			Addr:        viper.GetString("influxdb.addr"),
 			Username:    viper.GetString("influxdb.username"),
 			Password:    viper.GetString("influxdb.password"),
 			Database:    viper.GetString("influxdb.database"),
 			Measurement: viper.GetString("influxdb.measurement"),
 			Timeout:     10 * time.Second,
-		})
+		}
+		svc, err := measurement.New(cfg)
 		if err != nil {
-			return
+			return err
 		}
-		err = svc.Ping()
-		return
-	},
-	PersistentPostRun: func(cmd *cobra.Command, args []string) {
-		if client != nil {
-			client.Close()
+		if err := svc.Ping(); err != nil {
+			return err
 		}
-	},
-	RunE: func(cmd *cobra.Command, args []string) error {
+		defer svc.Close()
 		srv := server.New(svc)
 		router := httprouter.New()
 		router.GET("/", srv.Current)
