@@ -44,7 +44,8 @@ func (s *Server) Current(w http.ResponseWriter, r *http.Request, _ httprouter.Pa
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store, max-age=0")
 	w.Header().Set("ETag", etag(measurements))
-	if err := json.NewEncoder(w).Encode(toJSON(measurements, loc)); err != nil {
+	js := toJSON(measurements, loc)
+	if err := json.NewEncoder(w).Encode(js); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -74,13 +75,17 @@ func etag(measurements map[string]measurement.Measurement) string {
 func toJSON(measurements map[string]measurement.Measurement, loc *time.Location) map[string]jsonMeasurement {
 	mm := make(map[string]jsonMeasurement)
 	for name, m := range measurements {
-		ts := m.Timestamp.In(loc)
-		mm[name] = jsonMeasurement{
-			Timestamp:   ts.Format(time.RFC3339),
-			Temperature: m.Temperature,
-			Humidity:    m.Humidity,
-			Pressure:    m.Pressure,
-		}
+		mm[name] = toJSONMeasurement(m, loc)
 	}
 	return mm
+}
+
+func toJSONMeasurement(m measurement.Measurement, loc *time.Location) jsonMeasurement {
+	ts := m.Timestamp.In(loc)
+	return jsonMeasurement{
+		Timestamp:   ts.Format(time.RFC3339),
+		Temperature: m.Temperature,
+		Humidity:    m.Humidity,
+		Pressure:    m.Pressure,
+	}
 }
