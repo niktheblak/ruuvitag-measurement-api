@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/julienschmidt/httprouter"
+
 	"github.com/niktheblak/temperature-api/pkg/measurement"
 )
 
@@ -34,16 +35,11 @@ func (s *Server) Current(w http.ResponseWriter, r *http.Request, _ httprouter.Pa
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	var loc *time.Location
-	tz := r.URL.Query().Get("tz")
-	if tz != "" {
-		loc, err = time.LoadLocation(tz)
-		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-	} else {
-		loc = time.UTC
+	loc, err := location(r.URL.Query().Get("tz"))
+	if err != nil {
+		log.Printf("Invalid location: %v\n", err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store, max-age=0")
@@ -51,6 +47,15 @@ func (s *Server) Current(w http.ResponseWriter, r *http.Request, _ httprouter.Pa
 	if err := json.NewEncoder(w).Encode(toJSON(measurements, loc)); err != nil {
 		log.Fatal(err)
 	}
+}
+
+func location(tz string) (loc *time.Location, err error) {
+	if tz != "" {
+		loc, err = time.LoadLocation(tz)
+		return
+	}
+	loc = time.UTC
+	return
 }
 
 func etag(measurements map[string]measurement.Measurement) string {
