@@ -6,11 +6,18 @@ import (
 	"net/http"
 	"sort"
 	"strconv"
+	"time"
 
 	"github.com/julienschmidt/httprouter"
-
 	"github.com/niktheblak/temperature-api/pkg/measurement"
 )
+
+type jsonMeasurement struct {
+	Timestamp   string  `json:"ts"`
+	Temperature float64 `json:"temperature"`
+	Humidity    float64 `json:"humidity"`
+	Pressure    float64 `json:"pressure"`
+}
 
 type Server struct {
 	Service measurement.Service
@@ -21,16 +28,27 @@ func New(svc measurement.Service) *Server {
 }
 
 func (s *Server) Current(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	m, err := s.Service.Current(r.Context())
+	measurements, err := s.Service.Current(r.Context())
 	if err != nil {
 		log.Printf("Error while reading response: %v\n", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+	var loc *time.Location
+	tz := r.URL.Query().Get("tz")
+	if tz != "" {
+		loc, err = time.LoadLocation(tz)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+	} else {
+		loc = time.UTC
+	}
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store, max-age=0")
-	w.Header().Set("ETag", etag(m))
-	if err := json.NewEncoder(w).Encode(m); err != nil {
+	w.Header().Set("ETag", etag(measurements))
+	if err := json.NewEncoder(w).Encode(toJSON(measurements, loc)); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -46,4 +64,18 @@ func etag(measurements map[string]measurement.Measurement) string {
 	sort.Float64s(timestamps)
 	newest := int64(timestamps[len(timestamps)-1])
 	return strconv.FormatInt(newest, 16)
+}
+
+func toJSON(measurements map[string]measurement.Measurement, loc *time.Location) map[string]jsonMeasurement {
+	mm := make(map[string]jsonMeasurement)
+	for name, m := range measurements {
+		ts := m.Timestamp.In(loc)
+		mm[name] = jsonMeasurement{
+			Timestamp:   ts.Format(time.RFC3339),
+			Temperature: m.Temperature,
+			Humidity:    m.Humidity,
+			Pressure:    m.Pressure,
+		}
+	}
+	return mm
 }
