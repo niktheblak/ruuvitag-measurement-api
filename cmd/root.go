@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/julienschmidt/httprouter"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
@@ -36,11 +35,12 @@ var rootCmd = &cobra.Command{
 			return err
 		}
 		defer svc.Close()
-		srv := server.New(svc)
-		router := httprouter.New()
-		router.GET("/", srv.Current)
+		srv := &server.Server{
+			Service: svc,
+		}
+		srv.Routes()
 		port := viper.GetInt("http.port")
-		return http.ListenAndServe(fmt.Sprintf(":%d", port), router)
+		return http.ListenAndServe(fmt.Sprintf(":%d", port), nil)
 	},
 }
 
