@@ -4,28 +4,39 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"strconv"
 	"time"
-
-	flag "github.com/spf13/pflag"
 
 	"github.com/niktheblak/temperature-api/internal/server"
 	"github.com/niktheblak/temperature-api/pkg/measurement"
 )
 
 func main() {
-	addr := flag.String("addr", "http://127.0.0.1:8086", "InfluxDB address")
-	username := flag.String("username", "", "InfluxDB username")
-	password := flag.String("password", "", "InfluxDB password")
-	db := flag.String("database", "ruuvitag", "InfluxDB database")
-	meas := flag.String("measurement", "ruuvitag", "InfluxDB measurement")
-	port := flag.Int("port", 8080, "HTTP server port")
-	flag.Parse()
+	addr := os.Getenv("INFLUXDB_ADDR")
+	if addr == "" {
+		addr = "http://127.0.0.1:8086"
+	}
+	username := os.Getenv("INFLUXDB_USERNAME")
+	password := os.Getenv("INFLUXDB_PASSWORD")
+	database := os.Getenv("INFLUXDB_DATABASE")
+	if database == "" {
+		database = "ruuvitag"
+	}
+	meas := os.Getenv("INFLUXDB_MEASUREMENT")
+	if meas == "" {
+		meas = "ruuvitag"
+	}
+	port, _ := strconv.Atoi(os.Getenv("HTTP_PORT"))
+	if port <= 0 || port > 65536 {
+		port = 8080
+	}
 	cfg := measurement.Config{
-		Addr:        *addr,
-		Username:    *username,
-		Password:    *password,
-		Database:    *db,
-		Measurement: *meas,
+		Addr:        addr,
+		Username:    username,
+		Password:    password,
+		Database:    database,
+		Measurement: meas,
 		Timeout:     10 * time.Second,
 	}
 	svc, err := measurement.New(cfg)
@@ -40,5 +51,5 @@ func main() {
 		Service: svc,
 	}
 	srv.Routes()
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), nil))
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", port), nil))
 }
