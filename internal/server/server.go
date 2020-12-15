@@ -8,15 +8,19 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/julienschmidt/httprouter"
 	"github.com/niktheblak/temperature-api/pkg/measurement"
 )
 
 type Server struct {
 	Service measurement.Service
+	Router  *httprouter.Router
 }
 
 func (s *Server) Routes() {
-	http.HandleFunc("/", s.Current())
+	s.Router.HandlerFunc("GET", "/ready", s.Ready())
+	s.Router.HandlerFunc("GET", "/health", s.Health())
+	s.Router.HandlerFunc("GET", "/", s.Current())
 }
 
 func (s *Server) Current() http.HandlerFunc {
@@ -54,6 +58,44 @@ func (s *Server) Current() http.HandlerFunc {
 		}
 		if err := json.NewEncoder(w).Encode(js); err != nil {
 			log.Fatal(err)
+		}
+	}
+}
+
+func (s *Server) Ready() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		status := map[string]interface{}{
+			"status": "ok",
+		}
+		if err := json.NewEncoder(w).Encode(status); err != nil {
+			log.Fatal(err)
+		}
+	}
+}
+
+func (s *Server) Health() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		err := s.Service.Ping()
+		if err == nil {
+			w.WriteHeader(http.StatusOK)
+			status := map[string]interface{}{
+				"status": "ok",
+			}
+			if err := json.NewEncoder(w).Encode(status); err != nil {
+				log.Fatal(err)
+			}
+		} else {
+			log.Printf("Error during status check: %v\n", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			status := map[string]interface{}{
+				"status": "error",
+				"error":  err.Error(),
+			}
+			if err := json.NewEncoder(w).Encode(status); err != nil {
+				log.Fatal(err)
+			}
 		}
 	}
 }
