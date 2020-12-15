@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/julienschmidt/httprouter"
+
 	"github.com/niktheblak/temperature-api/pkg/measurement"
 )
 
@@ -36,11 +38,12 @@ func (s *mockService) Close() error {
 func TestServe(t *testing.T) {
 	srv := &Server{
 		Service: &mockService{},
+		Router:  httprouter.New(),
 	}
 	srv.Routes()
 	req := httptest.NewRequest("GET", "/", nil)
 	w := httptest.NewRecorder()
-	http.DefaultServeMux.ServeHTTP(w, req)
+	srv.Router.ServeHTTP(w, req)
 	if w.Code != http.StatusOK {
 		t.Errorf("Wrong status code: %d", w.Code)
 	}
