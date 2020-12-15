@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/julienschmidt/httprouter"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/niktheblak/temperature-api/pkg/measurement"
 )
@@ -44,25 +46,15 @@ func TestServe(t *testing.T) {
 	req := httptest.NewRequest("GET", "/", nil)
 	w := httptest.NewRecorder()
 	srv.Router.ServeHTTP(w, req)
-	if w.Code != http.StatusOK {
-		t.Errorf("Wrong status code: %d", w.Code)
-	}
+	require.Equal(t, http.StatusOK, w.Code)
 	dec := json.NewDecoder(w.Body)
 	m := make(map[string]interface{})
-	if err := dec.Decode(&m); err != nil {
-		t.Error(err)
-	}
+	err := dec.Decode(&m)
+	require.NoError(t, err)
+	require.IsType(t, map[string]interface{}{}, m["Living room"])
 	lr := m["Living room"].(map[string]interface{})
-	if lr["ts"].(string) != "2020-12-10T12:10:39Z" {
-		t.Errorf("Invalid timestamp: %s", m["ts"])
-	}
-	if lr["temperature"].(float64) != 23.5 {
-		t.Errorf("Invalid temperature: %f", m["temperature"])
-	}
-	if lr["humidity"].(float64) != 60.0 {
-		t.Errorf("Invalid humidity: %f", m["humidity"])
-	}
-	if lr["pressure"].(float64) != 998.0 {
-		t.Errorf("Invalid pressure: %f", m["pressure"])
-	}
+	assert.Equal(t, "2020-12-10T12:10:39Z", lr["ts"])
+	assert.Equal(t, 23.5, lr["temperature"])
+	assert.Equal(t, 60.0, lr["humidity"])
+	assert.Equal(t, 998.0, lr["pressure"])
 }
