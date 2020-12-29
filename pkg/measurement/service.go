@@ -15,8 +15,7 @@ const queryTemplate = `from(bucket: "%s")
   |> filter(fn: (r) =>
       r._measurement == "%s"
   )
-  |> sort(columns: ["_time"], desc: true)
-  |> top(n:1, columns: ["name"])`
+  |> top(n:1, columns: ["_time", "name"])`
 
 // Config is the InfluxDB connection config
 type Config struct {
