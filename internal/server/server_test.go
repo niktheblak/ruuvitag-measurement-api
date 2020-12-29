@@ -29,7 +29,7 @@ func (s *mockService) Current(ctx context.Context) (map[string]measurement.Measu
 	return map[string]measurement.Measurement{}, nil
 }
 
-func (s *mockService) Ping() error {
+func (s *mockService) Ping(ctx context.Context) error {
 	return s.PingResponse
 }
 
