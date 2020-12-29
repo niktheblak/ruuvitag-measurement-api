@@ -2,12 +2,20 @@ package measurement
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"time"
 
-	influxdb "github.com/influxdata/influxdb1-client/v2"
+	influxdb "github.com/influxdata/influxdb-client-go/v2"
+	"github.com/influxdata/influxdb-client-go/v2/api"
+	"github.com/influxdata/influxdb-client-go/v2/domain"
 )
+
+const queryTemplate = `from(bucket: "%s")
+  |> range(start: -1h)
+  |> filter(fn: (r) =>
+      r._measurement == "%s"
+  )
+  |> top(n:1, columns: ["name"])`
 
 // Config is the InfluxDB connection config
 type Config struct {
@@ -20,7 +28,7 @@ type Config struct {
 }
 
 type Pinger interface {
-	Ping() error
+	Ping(ctx context.Context) error
 }
 
 type Closer interface {
@@ -35,87 +43,69 @@ type Service interface {
 
 type service struct {
 	client   influxdb.Client
-	database string
-	query    string
+	queryAPI api.QueryAPI
+	cfg      Config
 }
 
 // New creates a new instance of the service using the given config
 func New(cfg Config) (Service, error) {
-	client, err := influxdb.NewHTTPClient(influxdb.HTTPConfig{
-		Addr:     cfg.Addr,
-		Username: cfg.Username,
-		Password: cfg.Password,
-		Timeout:  cfg.Timeout,
-	})
-	if err != nil {
-		return nil, err
-	}
-	q := fmt.Sprintf("SELECT temperature, humidity, pressure FROM %s GROUP BY \"name\" ORDER BY \"time\" DESC LIMIT 1", cfg.Measurement)
+	token := fmt.Sprintf("%s:%s", cfg.Username, cfg.Password)
+	client := influxdb.NewClient(cfg.Addr, token)
 	return &service{
 		client:   client,
-		database: cfg.Database,
-		query:    q,
+		queryAPI: client.QueryAPI("temperature-api"),
+		cfg:      cfg,
 	}, nil
 }
 
 // Current returns current measurements
 func (s *service) Current(ctx context.Context) (map[string]Measurement, error) {
-	q := influxdb.NewQuery(s.query, s.database, "")
-	res, err := s.client.Query(q)
+	q := fmt.Sprintf(queryTemplate, s.cfg.Database, s.cfg.Measurement)
+	res, err := s.queryAPI.Query(ctx, q)
 	if err != nil {
 		return nil, err
 	}
-	m := make(map[string]Measurement)
-	for _, r := range res.Results {
-		for _, row := range r.Series {
-			if len(row.Values) < 1 {
-				continue
-			}
-			v := row.Values[0]
-			if len(v) < 4 {
-				continue
-			}
-			name, ok := row.Tags["name"]
-			if !ok {
-				continue
-			}
-			m[name] = Measurement{
-				Timestamp:   parseTimestamp(v[0]),
-				Temperature: parseFloat(v[1]),
-				Humidity:    parseFloat(v[2]),
-				Pressure:    parseFloat(v[3]),
-			}
+	defer res.Close()
+	measurements := make(map[string]Measurement)
+	for res.Next() {
+		r := res.Record()
+		name, ok := r.ValueByKey("name").(string)
+		if !ok {
+			continue
 		}
+		field, ok := r.ValueByKey("_field").(string)
+		if !ok {
+			continue
+		}
+		v, _ := r.ValueByKey("_value").(float64)
+		m := measurements[name]
+		m.Timestamp = r.Time()
+		switch field {
+		case "temperature":
+			m.Temperature = v
+		case "humidity":
+			m.Humidity = v
+		case "pressure":
+			m.Pressure = v
+		}
+		measurements[name] = m
 	}
-	return m, res.Error()
+	return measurements, res.Err()
 }
 
 // Ping checks that the server connection works
-func (s *service) Ping() error {
-	_, _, err := s.client.Ping(5 * time.Second)
-	return err
+func (s *service) Ping(ctx context.Context) error {
+	h, err := s.client.Health(ctx)
+	if err != nil {
+		return err
+	}
+	if h.Status != domain.HealthCheckStatusPass {
+		return fmt.Errorf("%s", *h.Message)
+	}
+	return nil
 }
 
 func (s *service) Close() error {
-	return s.client.Close()
-}
-
-func parseTimestamp(v interface{}) time.Time {
-	str, ok := v.(string)
-	if !ok {
-		return time.Time{}
-	}
-	ts, _ := time.Parse(time.RFC3339Nano, str)
-	return ts
-}
-
-func parseFloat(v interface{}) float64 {
-	n, ok := v.(json.Number)
-	if ok {
-		v, err := n.Float64()
-		if err == nil {
-			return v
-		}
-	}
-	return 0
+	s.client.Close()
+	return nil
 }

@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"github.com/julienschmidt/httprouter"
+
 	"github.com/niktheblak/temperature-api/pkg/measurement"
 )
 
@@ -77,7 +79,9 @@ func (s *Server) Ready() http.HandlerFunc {
 func (s *Server) Health() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		err := s.Service.Ping()
+		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+		err := s.Service.Ping(ctx)
+		cancel()
 		if err == nil {
 			w.WriteHeader(http.StatusOK)
 			status := map[string]interface{}{
