@@ -53,7 +53,7 @@ func New(cfg Config) (Service, error) {
 	client := influxdb.NewClient(cfg.Addr, token)
 	return &service{
 		client:   client,
-		queryAPI: client.QueryAPI("temperature-api"),
+		queryAPI: client.QueryAPI(""),
 		cfg:      cfg,
 	}, nil
 }
