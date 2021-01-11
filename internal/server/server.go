@@ -45,9 +45,15 @@ func (s *Server) Current() http.HandlerFunc {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
+		tag := etag(measurements)
+		if tag != "" && r.Header.Get("If-None-Match") == tag {
+			w.WriteHeader(http.StatusNotModified)
+			return
+		}
 		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Cache-Control", "no-store, max-age=0")
-		w.Header().Set("ETag", etag(measurements))
+		if tag != "" {
+			w.Header().Set("ETag", tag)
+		}
 		js := make(map[string]interface{})
 		for name, m := range measurements {
 			ts := m.Timestamp.In(loc)
