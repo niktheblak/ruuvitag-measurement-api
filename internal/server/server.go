@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"sort"
-	"strconv"
 	"time"
 
 	"github.com/julienschmidt/httprouter"
@@ -45,15 +43,8 @@ func (s *Server) Current() http.HandlerFunc {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		tag := etag(measurements)
-		if tag != "" && r.Header.Get("If-None-Match") == tag {
-			w.WriteHeader(http.StatusNotModified)
-			return
-		}
 		w.Header().Set("Content-Type", "application/json")
-		if tag != "" {
-			w.Header().Set("ETag", tag)
-		}
+		w.Header().Set("Cache-Control", "no-store, max-age=0")
 		js := make(map[string]interface{})
 		for name, m := range measurements {
 			ts := m.Timestamp.In(loc)
@@ -117,17 +108,4 @@ func location(tz string) (loc *time.Location, err error) {
 	}
 	loc = time.UTC
 	return
-}
-
-func etag(measurements map[string]measurement.Measurement) string {
-	if len(measurements) == 0 {
-		return ""
-	}
-	var timestamps []float64
-	for _, m := range measurements {
-		timestamps = append(timestamps, float64(m.Timestamp.Unix()))
-	}
-	sort.Float64s(timestamps)
-	newest := int64(timestamps[len(timestamps)-1])
-	return strconv.FormatInt(newest, 16)
 }
