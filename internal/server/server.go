@@ -39,7 +39,7 @@ func (s *Server) Current() http.HandlerFunc {
 		}
 		loc, err := location(r.URL.Query().Get("tz"))
 		if err != nil {
-			log.Printf("Invalid location: %v\n", err)
+			log.Printf("Invalid location %s: %v\n", r.URL.Query().Get("tz"), err)
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
