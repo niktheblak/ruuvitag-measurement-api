@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/julienschmidt/httprouter"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -47,14 +46,10 @@ func TestServe(t *testing.T) {
 			Pressure:    998.0,
 		},
 	}
-	srv := &Server{
-		Service: svc,
-		Router:  httprouter.New(),
-	}
-	srv.Routes()
+	srv := New(svc)
 	req := httptest.NewRequest("GET", "/", nil)
 	w := httptest.NewRecorder()
-	srv.Router.ServeHTTP(w, req)
+	srv.ServeHTTP(w, req)
 	require.Equal(t, http.StatusOK, w.Code)
 	m := decode(t, w.Body)
 	require.IsType(t, map[string]interface{}{}, m["Living room"])
@@ -67,16 +62,12 @@ func TestServe(t *testing.T) {
 
 func TestHealth(t *testing.T) {
 	svc := new(mockService)
-	srv := &Server{
-		Service: svc,
-		Router:  httprouter.New(),
-	}
-	srv.Routes()
+	srv := New(svc)
 	t.Run("Health OK", func(t *testing.T) {
 		svc.PingResponse = nil
 		req := httptest.NewRequest("GET", "/health", nil)
 		w := httptest.NewRecorder()
-		srv.Router.ServeHTTP(w, req)
+		srv.ServeHTTP(w, req)
 		require.Equal(t, http.StatusOK, w.Code)
 		m := decode(t, w.Body)
 		assert.Equal(t, "ok", m["status"])
@@ -85,7 +76,7 @@ func TestHealth(t *testing.T) {
 		svc.PingResponse = fmt.Errorf("database error")
 		req := httptest.NewRequest("GET", "/health", nil)
 		w := httptest.NewRecorder()
-		srv.Router.ServeHTTP(w, req)
+		srv.ServeHTTP(w, req)
 		require.Equal(t, http.StatusInternalServerError, w.Code)
 		m := decode(t, w.Body)
 		assert.Equal(t, "error", m["status"])

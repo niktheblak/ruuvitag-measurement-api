@@ -9,8 +9,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/julienschmidt/httprouter"
-
 	"github.com/niktheblak/temperature-api/internal/server"
 	"github.com/niktheblak/temperature-api/pkg/measurement"
 )
@@ -52,10 +50,6 @@ func main() {
 	}
 	cancel()
 	defer svc.Close()
-	srv := &server.Server{
-		Service: svc,
-		Router:  httprouter.New(),
-	}
-	srv.Routes()
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", port), srv.Router))
+	srv := server.New(svc)
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", port), srv))
 }
