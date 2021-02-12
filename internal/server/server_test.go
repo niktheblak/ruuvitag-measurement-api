@@ -3,7 +3,6 @@ package server
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -58,30 +57,6 @@ func TestServe(t *testing.T) {
 	assert.Equal(t, 23.5, lr["temperature"])
 	assert.Equal(t, 60.0, lr["humidity"])
 	assert.Equal(t, 998.0, lr["pressure"])
-}
-
-func TestHealth(t *testing.T) {
-	svc := new(mockService)
-	srv := New(svc)
-	t.Run("Health OK", func(t *testing.T) {
-		svc.PingResponse = nil
-		req := httptest.NewRequest("GET", "/health", nil)
-		w := httptest.NewRecorder()
-		srv.ServeHTTP(w, req)
-		require.Equal(t, http.StatusOK, w.Code)
-		m := decode(t, w.Body)
-		assert.Equal(t, "ok", m["status"])
-	})
-	t.Run("Health error", func(t *testing.T) {
-		svc.PingResponse = fmt.Errorf("database error")
-		req := httptest.NewRequest("GET", "/health", nil)
-		w := httptest.NewRecorder()
-		srv.ServeHTTP(w, req)
-		require.Equal(t, http.StatusInternalServerError, w.Code)
-		m := decode(t, w.Body)
-		assert.Equal(t, "error", m["status"])
-		assert.Equal(t, "database error", m["error"])
-	})
 }
 
 func decode(t *testing.T, r io.Reader) map[string]interface{} {
