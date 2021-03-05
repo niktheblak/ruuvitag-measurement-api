@@ -20,9 +20,9 @@ const queryTemplate = `from(bucket: "%s")
 // Config is the InfluxDB connection config
 type Config struct {
 	Addr        string
-	Username    string
-	Password    string
-	Database    string
+	Org         string
+	Token       string
+	Bucket      string
 	Measurement string
 	Timeout     time.Duration
 }
@@ -49,18 +49,17 @@ type service struct {
 
 // New creates a new instance of the service using the given config
 func New(cfg Config) (Service, error) {
-	token := fmt.Sprintf("%s:%s", cfg.Username, cfg.Password)
-	client := influxdb.NewClient(cfg.Addr, token)
+	client := influxdb.NewClient(cfg.Addr, cfg.Token)
 	return &service{
 		client:   client,
-		queryAPI: client.QueryAPI(""),
+		queryAPI: client.QueryAPI(cfg.Org),
 		cfg:      cfg,
 	}, nil
 }
 
 // Current returns current measurements
 func (s *service) Current(ctx context.Context) (map[string]Measurement, error) {
-	q := fmt.Sprintf(queryTemplate, s.cfg.Database, s.cfg.Measurement)
+	q := fmt.Sprintf(queryTemplate, s.cfg.Bucket, s.cfg.Measurement)
 	res, err := s.queryAPI.Query(ctx, q)
 	if err != nil {
 		return nil, err

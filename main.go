@@ -18,25 +18,19 @@ func main() {
 	if addr == "" {
 		addr = "http://127.0.0.1:8086"
 	}
-	username := os.Getenv("INFLUXDB_USERNAME")
-	password := os.Getenv("INFLUXDB_PASSWORD")
-	database := os.Getenv("INFLUXDB_DATABASE")
-	if database == "" {
-		database = "ruuvitag"
-	}
+	org := os.Getenv("INFLUXDB_ORG")
+	token := os.Getenv("INFLUXDB_TOKEN")
+	bucket := os.Getenv("INFLUXDB_BUCKET")
 	meas := os.Getenv("INFLUXDB_MEASUREMENT")
-	if meas == "" {
-		meas = "ruuvitag"
-	}
 	port, _ := strconv.Atoi(os.Getenv("HTTP_PORT"))
 	if port <= 0 || port > 65536 {
 		port = 8080
 	}
 	cfg := measurement.Config{
 		Addr:        addr,
-		Username:    username,
-		Password:    password,
-		Database:    database,
+		Org:         org,
+		Token:       token,
+		Bucket:      bucket,
 		Measurement: meas,
 		Timeout:     10 * time.Second,
 	}
