@@ -4,8 +4,8 @@ set -e
 
 TS=$(date +%s)
 
-curl 'http://localhost:8086/api/v2/write?bucket=ruuvitag&precision=s' \
-  --header 'Authorization: Token api:api' \
+curl 'http://localhost:8086/api/v2/write?org=ruuvitag&bucket=ruuvitag&precision=s' \
+  --header 'Authorization: Token DockerInfluxDBAdminToken' \
   --data-binary "ruuvi,name=Mancave,mac=CC:CA:7E:52:CC:34 temperature=23.1 $TS
 ruuvi,name=Mancave,mac=CC:CA:7E:52:CC:34 humidity=45.0 $TS
 ruuvi,name=Mancave,mac=CC:CA:7E:52:CC:34 pressure=999.0 $TS
