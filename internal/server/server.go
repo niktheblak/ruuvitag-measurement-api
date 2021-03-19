@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -38,7 +39,9 @@ func (s *Server) Current(w http.ResponseWriter, r *http.Request) {
 		Humidity    float64 `json:"humidity"`
 		Pressure    float64 `json:"pressure"`
 	}
-	measurements, err := s.service.Current(r.Context())
+	ctx, cancel := context.WithTimeout(r.Context(), 5 * time.Second)
+	defer cancel()
+	measurements, err := s.service.Current(ctx)
 	if err != nil {
 		log.Printf("Error while reading response: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
