@@ -1,9 +1,6 @@
-# Created by https://www.toptal.com/developers/gitignore/api/go
-# Edit at https://www.toptal.com/developers/gitignore?templates=go
-
-### Go ###
 # Binaries for programs and plugins
 *.exe
+*.bat
 *.exe~
 *.dll
 *.so
@@ -18,6 +15,6 @@
 # Dependency directories (remove the comment below to include it)
 # vendor/
 
-# End of https://www.toptal.com/developers/gitignore/api/go
-
-test/influxdb/data/
+# IntelliJ IDEA
+.IDEA
+*.IML
