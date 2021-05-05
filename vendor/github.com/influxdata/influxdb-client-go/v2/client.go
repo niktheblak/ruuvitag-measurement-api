@@ -11,6 +11,7 @@ import (
 	"errors"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/influxdata/influxdb-client-go/v2/api"
 	"github.com/influxdata/influxdb-client-go/v2/api/http"
@@ -42,11 +43,14 @@ type Client interface {
 	ServerURL() string
 	// HTTPService returns underlying HTTP service object used by client
 	HTTPService() http.Service
-	// WriteAPI returns the asynchronous, non-blocking, Write client
+	// WriteAPI returns the asynchronous, non-blocking, Write client.
+	// Ensures using a single WriteAPI instance for each org/bucket pair.
 	WriteAPI(org, bucket string) api.WriteAPI
-	// WriteAPIBlocking returns the synchronous, blocking, Write client
+	// WriteAPIBlocking returns the synchronous, blocking, Write client.
+	// Ensures using a single WriteAPIBlocking instance for each org/bucket pair.
 	WriteAPIBlocking(org, bucket string) api.WriteAPIBlocking
-	// QueryAPI returns Query client
+	// QueryAPI returns Query client.
+	// Ensures using a single QueryAPI instance each org.
 	QueryAPI(org string) api.QueryAPI
 	// AuthorizationsAPI returns Authorizations API client.
 	AuthorizationsAPI() api.AuthorizationsAPI
@@ -139,31 +143,34 @@ func (c *clientImpl) Ready(ctx context.Context) (bool, error) {
 		return false, err
 	}
 	if response.JSONDefault != nil {
-		return false, domain.DomainErrorToError(response.JSONDefault, response.StatusCode())
+		return false, domain.ErrorToHTTPError(response.JSONDefault, response.StatusCode())
 	}
 	return true, nil
 }
 
 func (c *clientImpl) Setup(ctx context.Context, username, password, org, bucket string, retentionPeriodHours int) (*domain.OnboardingResponse, error) {
 	if username == "" || password == "" {
-		return nil, errors.New("a username and password is required for a setup")
+		return nil, errors.New("a username and a password is required for a setup")
 	}
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	params := &domain.PostSetupParams{}
+	retentionPeriodSeconds := retentionPeriodHours * 3600
+	retentionPeriodHrs := int(time.Duration(retentionPeriodSeconds) * time.Second)
 	body := &domain.PostSetupJSONRequestBody{
-		Bucket:             bucket,
-		Org:                org,
-		Password:           &password,
-		RetentionPeriodHrs: &retentionPeriodHours,
-		Username:           username,
+		Bucket:                 bucket,
+		Org:                    org,
+		Password:               &password,
+		RetentionPeriodSeconds: &retentionPeriodSeconds,
+		RetentionPeriodHrs:     &retentionPeriodHrs,
+		Username:               username,
 	}
 	response, err := c.apiClient.PostSetupWithResponse(ctx, params, *body)
 	if err != nil {
 		return nil, err
 	}
 	if response.JSONDefault != nil {
-		return nil, domain.DomainErrorToError(response.JSONDefault, response.StatusCode())
+		return nil, domain.ErrorToHTTPError(response.JSONDefault, response.StatusCode())
 	}
 	c.httpService.SetAuthorization("Token " + *response.JSON201.Auth.Token)
 	return response.JSON201, nil
@@ -176,7 +183,7 @@ func (c *clientImpl) Health(ctx context.Context) (*domain.HealthCheck, error) {
 		return nil, err
 	}
 	if response.JSONDefault != nil {
-		return nil, domain.DomainErrorToError(response.JSONDefault, response.StatusCode())
+		return nil, domain.ErrorToHTTPError(response.JSONDefault, response.StatusCode())
 	}
 	if response.JSON503 != nil {
 		//unhealthy server

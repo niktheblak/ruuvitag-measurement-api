@@ -16,6 +16,8 @@ import (
 )
 
 // WriteAPI is Write client interface with non-blocking methods for writing time series data asynchronously in batches into an InfluxDB server.
+// WriteAPI can be used concurrently.
+// When using multiple goroutines for writing, use a single WriteAPI instance in all goroutines.
 type WriteAPI interface {
 	// WriteRecord writes asynchronously line protocol record into bucket.
 	// WriteRecord adds record into the buffer which is sent on the background when it reaches the batch size.
@@ -54,6 +56,7 @@ type writeBuffInfoReq struct {
 	writeBuffLen int
 }
 
+// NewWriteAPI returns new non-blocking write client for writing data to  bucket belonging to org
 func NewWriteAPI(org string, bucket string, service http2.Service, writeOptions *write.Options) *WriteAPIImpl {
 	w := &WriteAPIImpl{
 		service:      iwrite.NewService(org, bucket, service, writeOptions),
@@ -75,6 +78,9 @@ func NewWriteAPI(org string, bucket string, service http2.Service, writeOptions 
 	return w
 }
 
+// Errors returns a channel for reading errors which occurs during async writes.
+// Must be called before performing any writes for errors to be collected.
+// The chan is unbuffered and must be drained or the writer will block.
 func (w *WriteAPIImpl) Errors() <-chan error {
 	if w.errCh == nil {
 		w.errCh = make(chan error)
@@ -82,6 +88,7 @@ func (w *WriteAPIImpl) Errors() <-chan error {
 	return w.errCh
 }
 
+// Flush forces all pending writes from the buffer to be sent
 func (w *WriteAPIImpl) Flush() {
 	w.bufferFlush <- struct{}{}
 	w.waitForFlushing()
@@ -167,6 +174,8 @@ x:
 	w.doneCh <- struct{}{}
 }
 
+// Close finishes outstanding write operations,
+// stop background routines and closes all channels
 func (w *WriteAPIImpl) Close() {
 	if w.writeCh != nil {
 		// Flush outstanding metrics
@@ -196,12 +205,18 @@ func (w *WriteAPIImpl) Close() {
 	}
 }
 
+// WriteRecord writes asynchronously line protocol record into bucket.
+// WriteRecord adds record into the buffer which is sent on the background when it reaches the batch size.
+// Blocking alternative is available in the WriteAPIBlocking interface
 func (w *WriteAPIImpl) WriteRecord(line string) {
 	b := []byte(line)
 	b = append(b, 0xa)
 	w.bufferCh <- string(b)
 }
 
+// WritePoint writes asynchronously Point into bucket.
+// WritePoint adds Point into the buffer which is sent on the background when it reaches the batch size.
+// Blocking alternative is available in the WriteAPIBlocking interface
 func (w *WriteAPIImpl) WritePoint(point *write.Point) {
 	line, err := w.service.EncodePoints(point)
 	if err != nil {

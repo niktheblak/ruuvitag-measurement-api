@@ -1,3 +1,23 @@
+## 2.3.0 [2021-04-30]
+### Breaking change
+[#253](https://github.com/influxdata/influxdb-client-go/pull/253) Interface 'Logger' extended with 'LogLevel() uint' getter.
+
+### Features
+[#241](https://github.com/influxdata/influxdb-client-go/pull/241),[#248](https://github.com/influxdata/influxdb-client-go/pull/248) Synced with InfluxDB 2.0.5 swagger:
+  - Setup (onboarding) now sends correctly retentionDuration if specified  
+  - `RetentionRule` used in `Bucket` now contains `ShardGroupDurationSeconds` to specify the shard group duration.
+
+### Documentation
+1. [#242](https://github.com/influxdata/influxdb-client-go/pull/242) Documentation improvements:
+ - [Custom server API example](https://pkg.go.dev/github.com/influxdata/influxdb-client-go/v2#example-Client-CustomServerAPICall) now shows how to create DBRP mapping
+ - Improved documentation about concurrency
+1. [#251](https://github.com/influxdata/influxdb-client-go/pull/251) Fixed Readme.md formatting
+ 
+### Bug fixes
+1. [#252](https://github.com/influxdata/influxdb-client-go/pull/252) Fixed panic when getting not present standard Flux columns  
+1. [#253](https://github.com/influxdata/influxdb-client-go/pull/253) Conditional debug logging of buffers 
+1. [#254](https://github.com/influxdata/influxdb-client-go/pull/254) Fixed golint issues
+
 ## 2.2.3 [2021-04-01]
 ### Bug fixes
 1. [#236](https://github.com/influxdata/influxdb-client-go/pull/236) Setting MaxRetries to zero value disables retry strategy.

@@ -4,7 +4,7 @@ github.com/davecgh/go-spew/spew
 ## explicit
 github.com/deepmap/oapi-codegen/pkg/runtime
 github.com/deepmap/oapi-codegen/pkg/types
-# github.com/influxdata/influxdb-client-go/v2 v2.2.3
+# github.com/influxdata/influxdb-client-go/v2 v2.3.0
 ## explicit
 github.com/influxdata/influxdb-client-go/v2
 github.com/influxdata/influxdb-client-go/v2/api
@@ -28,7 +28,7 @@ github.com/pmezard/go-difflib/difflib
 ## explicit
 github.com/stretchr/testify/assert
 github.com/stretchr/testify/require
-# golang.org/x/net v0.0.0-20210415231046-e915ea6b2b7d
+# golang.org/x/net v0.0.0-20210505024714-0287a6fb4125
 ## explicit
 golang.org/x/net/publicsuffix
 # gopkg.in/yaml.v2 v2.4.0
