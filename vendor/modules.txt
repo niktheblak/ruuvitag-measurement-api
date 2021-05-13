@@ -28,7 +28,7 @@ github.com/pmezard/go-difflib/difflib
 ## explicit
 github.com/stretchr/testify/assert
 github.com/stretchr/testify/require
-# golang.org/x/net v0.0.0-20210505024714-0287a6fb4125
+# golang.org/x/net v0.0.0-20210510120150-4163338589ed
 ## explicit
 golang.org/x/net/publicsuffix
 # gopkg.in/yaml.v2 v2.4.0
