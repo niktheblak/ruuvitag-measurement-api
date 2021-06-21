@@ -38,8 +38,9 @@ func (s *Server) Current(w http.ResponseWriter, r *http.Request) {
 		Temperature float64 `json:"temperature"`
 		Humidity    float64 `json:"humidity"`
 		Pressure    float64 `json:"pressure"`
+		DewPoint    float64 `json:"dew_point"`
 	}
-	ctx, cancel := context.WithTimeout(r.Context(), 5 * time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 	measurements, err := s.service.Current(ctx)
 	if err != nil {
@@ -63,6 +64,7 @@ func (s *Server) Current(w http.ResponseWriter, r *http.Request) {
 			Temperature: m.Temperature,
 			Humidity:    m.Humidity,
 			Pressure:    m.Pressure,
+			DewPoint:    m.DewPoint,
 		}
 	}
 	if err := json.NewEncoder(w).Encode(js); err != nil {
