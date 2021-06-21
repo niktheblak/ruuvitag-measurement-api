@@ -86,6 +86,8 @@ func (s *service) Current(ctx context.Context) (map[string]Measurement, error) {
 			m.Humidity = v
 		case "pressure":
 			m.Pressure = v
+		case "dew_point":
+			m.DewPoint = v
 		}
 		measurements[name] = m
 	}
