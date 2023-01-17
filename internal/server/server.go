@@ -40,18 +40,18 @@ func (s *Server) Current(w http.ResponseWriter, r *http.Request) {
 		Pressure    float64 `json:"pressure"`
 		DewPoint    float64 `json:"dew_point"`
 	}
+	loc, err := location(r.URL.Query().Get("tz"))
+	if err != nil {
+		log.Printf("Invalid location %s: %v", r.URL.Query().Get("tz"), err)
+		http.Error(w, "Invalid location", http.StatusBadRequest)
+		return
+	}
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 	measurements, err := s.service.Current(ctx)
 	if err != nil {
-		log.Printf("Error while reading response: %v", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	loc, err := location(r.URL.Query().Get("tz"))
-	if err != nil {
-		log.Printf("Invalid location %s: %v", r.URL.Query().Get("tz"), err)
-		w.WriteHeader(http.StatusBadRequest)
+		log.Printf("Error while getting measurements: %v", err)
+		http.Error(w, "Error while getting measurements", http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
