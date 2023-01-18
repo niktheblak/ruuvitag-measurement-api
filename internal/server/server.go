@@ -7,7 +7,9 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/niktheblak/temperature-api/pkg/auth"
 	"github.com/niktheblak/temperature-api/pkg/measurement"
+	"github.com/niktheblak/temperature-api/pkg/middleware"
 )
 
 type Server struct {
@@ -15,17 +17,17 @@ type Server struct {
 	mux     *http.ServeMux
 }
 
-func New(service measurement.Service) *Server {
+func New(service measurement.Service, authenticator auth.Authenticator) *Server {
 	srv := &Server{
 		service: service,
 		mux:     http.NewServeMux(),
 	}
-	srv.routes()
+	srv.routes(authenticator)
 	return srv
 }
 
-func (s *Server) routes() {
-	s.mux.HandleFunc("/", s.Current)
+func (s *Server) routes(authenticator auth.Authenticator) {
+	s.mux.Handle("/", middleware.Authenticator(http.HandlerFunc(s.Current), authenticator))
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {

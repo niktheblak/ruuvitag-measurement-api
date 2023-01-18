@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/niktheblak/temperature-api/internal/server"
+	"github.com/niktheblak/temperature-api/pkg/auth"
 	"github.com/niktheblak/temperature-api/pkg/measurement"
 )
 
@@ -22,7 +23,8 @@ func main() {
 	token := os.Getenv("INFLUXDB_TOKEN")
 	bucket := os.Getenv("INFLUXDB_BUCKET")
 	meas := os.Getenv("INFLUXDB_MEASUREMENT")
-	port, _ := strconv.Atoi(os.Getenv("HTTP_PORT"))
+	port, _ := strconv.Atoi(os.Getenv("PORT"))
+	accessToken := os.Getenv("ACCESS_TOKEN")
 	if port <= 0 || port > 65536 {
 		port = 8080
 	}
@@ -44,6 +46,12 @@ func main() {
 	}
 	cancel()
 	defer svc.Close()
-	srv := server.New(svc)
+	var authenticator auth.Authenticator
+	if accessToken != "" {
+		authenticator = auth.Static(accessToken)
+	} else {
+		authenticator = auth.AlwaysAllow()
+	}
+	srv := server.New(svc, authenticator)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", port), srv))
 }

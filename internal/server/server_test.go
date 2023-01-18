@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -12,8 +13,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/niktheblak/temperature-api/pkg/auth"
 	"github.com/niktheblak/temperature-api/pkg/measurement"
 )
+
+const testAccessToken = "a65cd12f9bba453"
 
 type mockService struct {
 	Response     map[string]measurement.Measurement
@@ -45,18 +49,38 @@ func TestServe(t *testing.T) {
 			Pressure:    998.0,
 		},
 	}
-	srv := New(svc)
-	req := httptest.NewRequest("GET", "/", nil)
-	w := httptest.NewRecorder()
-	srv.ServeHTTP(w, req)
-	require.Equal(t, http.StatusOK, w.Code)
-	m := decode(t, w.Body)
-	require.IsType(t, map[string]interface{}{}, m["Living room"])
-	lr := m["Living room"].(map[string]interface{})
-	assert.Equal(t, "2020-12-10T12:10:39Z", lr["ts"])
-	assert.Equal(t, 23.5, lr["temperature"])
-	assert.Equal(t, 60.0, lr["humidity"])
-	assert.Equal(t, 998.0, lr["pressure"])
+	srv := New(svc, auth.Static(testAccessToken))
+	t.Run("with token", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/", nil)
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", testAccessToken))
+		w := httptest.NewRecorder()
+		srv.ServeHTTP(w, req)
+		require.Equal(t, http.StatusOK, w.Code)
+		m := decode(t, w.Body)
+		require.IsType(t, map[string]interface{}{}, m["Living room"])
+		lr := m["Living room"].(map[string]interface{})
+		assert.Equal(t, "2020-12-10T12:10:39Z", lr["ts"])
+		assert.Equal(t, 23.5, lr["temperature"])
+		assert.Equal(t, 60.0, lr["humidity"])
+		assert.Equal(t, 998.0, lr["pressure"])
+	})
+	t.Run("without token", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/", nil)
+		w := httptest.NewRecorder()
+		srv.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusForbidden, w.Code)
+	})
+	t.Run("timezone", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/?tz=Europe/Helsinki", nil)
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", testAccessToken))
+		w := httptest.NewRecorder()
+		srv.ServeHTTP(w, req)
+		require.Equal(t, http.StatusOK, w.Code)
+		m := decode(t, w.Body)
+		require.IsType(t, map[string]interface{}{}, m["Living room"])
+		lr := m["Living room"].(map[string]interface{})
+		assert.Equal(t, "2020-12-10T14:10:39+02:00", lr["ts"])
+	})
 }
 
 func decode(t *testing.T, r io.Reader) map[string]interface{} {
