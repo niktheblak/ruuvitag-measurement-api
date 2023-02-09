@@ -1,0 +1,10 @@
+[influxdb]
+addr = "https://eu-central-1-1.aws.cloud2.influxdata.com"
+org = "influxdb_org"
+token = "influxdb_token"
+bucket = "RuuviTag"
+measurement = "ruuvitag"
+
+[server]
+port = 8180
+token = ["api_access_token"]
