@@ -5,9 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	influxdb "github.com/influxdata/influxdb-client-go/v2"
+	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	"github.com/influxdata/influxdb-client-go/v2/api"
-	"github.com/influxdata/influxdb-client-go/v2/domain"
 )
 
 const queryTemplate = `from(bucket: "%s")
@@ -27,29 +26,24 @@ type Config struct {
 	Timeout     time.Duration
 }
 
-type Pinger interface {
-	Ping(ctx context.Context) error
-}
-
 type Closer interface {
 	Close() error
 }
 
 type Service interface {
-	Pinger
 	Closer
 	Current(ctx context.Context) (map[string]Measurement, error)
 }
 
 type service struct {
-	client   influxdb.Client
+	client   influxdb2.Client
 	queryAPI api.QueryAPI
 	cfg      Config
 }
 
 // New creates a new instance of the service using the given config
 func New(cfg Config) (Service, error) {
-	client := influxdb.NewClient(cfg.Addr, cfg.Token)
+	client := influxdb2.NewClient(cfg.Addr, cfg.Token)
 	return &service{
 		client:   client,
 		queryAPI: client.QueryAPI(cfg.Org),
@@ -92,18 +86,6 @@ func (s *service) Current(ctx context.Context) (map[string]Measurement, error) {
 		measurements[name] = m
 	}
 	return measurements, res.Err()
-}
-
-// Ping checks that the server connection works
-func (s *service) Ping(ctx context.Context) error {
-	h, err := s.client.Health(ctx)
-	if err != nil {
-		return err
-	}
-	if h.Status != domain.HealthCheckStatusPass {
-		return fmt.Errorf("%s", *h.Message)
-	}
-	return nil
 }
 
 func (s *service) Close() error {
