@@ -7,4 +7,4 @@ RUN go build -o /go/bin/app
 
 FROM gcr.io/distroless/base-debian11
 COPY --from=build /go/bin/app /
-ENTRYPOINT ["/app"]
+ENTRYPOINT ["/app", "server"]
