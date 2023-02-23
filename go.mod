@@ -1,13 +1,13 @@
 module github.com/niktheblak/temperature-api
 
-go 1.19
+go 1.20
 
 require (
 	github.com/deepmap/oapi-codegen v1.12.4 // indirect
 	github.com/influxdata/influxdb-client-go/v2 v2.12.2
 	github.com/influxdata/line-protocol v0.0.0-20210922203350-b1ad95c89adf // indirect
 	github.com/stretchr/testify v1.8.1
-	golang.org/x/net v0.6.0 // indirect
+	golang.org/x/net v0.7.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
