@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"crypto/subtle"
 )
 
 type StaticAuthenticator struct {
@@ -10,7 +11,7 @@ type StaticAuthenticator struct {
 
 func (a *StaticAuthenticator) Authenticate(ctx context.Context, token string) error {
 	for _, t := range a.AllowedTokens {
-		if token == t {
+		if subtle.ConstantTimeCompare([]byte(token), []byte(t)) == 1 {
 			return nil
 		}
 	}
