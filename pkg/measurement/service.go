@@ -2,7 +2,9 @@ package measurement
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io"
 	"time"
 
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
@@ -26,12 +28,8 @@ type Config struct {
 	Timeout     time.Duration
 }
 
-type Closer interface {
-	Close() error
-}
-
 type Service interface {
-	Closer
+	io.Closer
 	Current(ctx context.Context) (map[string]Measurement, error)
 }
 
@@ -52,14 +50,17 @@ func New(cfg Config) (Service, error) {
 }
 
 // Current returns current measurements
-func (s *service) Current(ctx context.Context) (map[string]Measurement, error) {
+func (s *service) Current(ctx context.Context) (measurements map[string]Measurement, err error) {
 	q := fmt.Sprintf(queryTemplate, s.cfg.Bucket, s.cfg.Measurement)
 	res, err := s.queryAPI.Query(ctx, q)
 	if err != nil {
-		return nil, err
+		return
 	}
-	defer res.Close()
-	measurements := make(map[string]Measurement)
+	defer func() {
+		closeErr := res.Close()
+		err = errors.Join(err, closeErr)
+	}()
+	measurements = make(map[string]Measurement)
 	for res.Next() {
 		r := res.Record()
 		name, ok := r.ValueByKey("name").(string)
@@ -85,7 +86,8 @@ func (s *service) Current(ctx context.Context) (map[string]Measurement, error) {
 		}
 		measurements[name] = m
 	}
-	return measurements, res.Err()
+	err = res.Err()
+	return
 }
 
 func (s *service) Close() error {
