@@ -36,7 +36,7 @@ var serverCmd = &cobra.Command{
 			Measurement: meas,
 			Timeout:     10 * time.Second,
 		}
-		slog.Info("Connecting to InfluxDB", "addr", addr, "bucket", bucket, "org", org)
+		logger.LogAttrs(nil, slog.LevelInfo, "Connecting to InfluxDB", slog.String("addr", addr), slog.String("bucket", bucket), slog.String("org", org))
 		svc, err := measurement.New(cfg)
 		if err != nil {
 			return err
@@ -44,14 +44,14 @@ var serverCmd = &cobra.Command{
 		defer svc.Close()
 		var authenticator auth.Authenticator
 		if len(accessToken) > 0 {
-			slog.Info("Using authentication", "tokens", len(accessToken))
+			logger.Info("Using authentication", "tokens", len(accessToken))
 			authenticator = auth.Static(accessToken...)
 		} else {
-			slog.Info("Not using authentication")
+			logger.Info("Not using authentication")
 			authenticator = auth.AlwaysAllow()
 		}
-		srv := server.New(svc, authenticator, slog.Default())
-		slog.Info("Starting server", "port", port)
+		srv := server.New(svc, authenticator, logger)
+		logger.LogAttrs(nil, slog.LevelInfo, "Starting server", slog.Int("port", port))
 		return http.ListenAndServe(fmt.Sprintf(":%d", port), srv)
 	},
 }

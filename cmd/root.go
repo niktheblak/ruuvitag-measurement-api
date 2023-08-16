@@ -10,6 +10,7 @@ import (
 
 var (
 	cfgFile string
+	logger  *slog.Logger
 )
 
 var rootCmd = &cobra.Command{
@@ -23,6 +24,7 @@ func Execute() error {
 }
 
 func init() {
+	logger = slog.Default()
 	cobra.OnInitialize(initConfig)
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.temperature-api.toml)")
 }
@@ -40,6 +42,6 @@ func initConfig() {
 	viper.AutomaticEnv()
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	if err := viper.ReadInConfig(); err == nil {
-		slog.Info("Using config file", "config", viper.ConfigFileUsed())
+		logger.LogAttrs(nil, slog.LevelInfo, "Using config file", slog.String("config", viper.ConfigFileUsed()))
 	}
 }

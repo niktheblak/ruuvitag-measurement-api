@@ -49,7 +49,7 @@ func (s *Server) Current(w http.ResponseWriter, r *http.Request) {
 	}
 	loc, err := location(r.URL.Query().Get("tz"))
 	if err != nil {
-		s.logger.Warn("Invalid timezone", "timezone", r.URL.Query().Get("tz"), "error", err)
+		s.logger.LogAttrs(r.Context(), slog.LevelWarn, "Invalid timezone", slog.String("timezone", r.URL.Query().Get("tz")), slog.Any("error", err))
 		http.Error(w, "Invalid timezone", http.StatusBadRequest)
 		return
 	}
@@ -57,7 +57,7 @@ func (s *Server) Current(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	measurements, err := s.service.Current(ctx)
 	if err != nil {
-		s.logger.Error("Error while getting measurements", "error", err)
+		s.logger.LogAttrs(r.Context(), slog.LevelError, "Error while getting measurements", slog.Any("error", err))
 		http.Error(w, "Error while getting measurements", http.StatusInternalServerError)
 		return
 	}
@@ -75,7 +75,7 @@ func (s *Server) Current(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if err := json.NewEncoder(w).Encode(js); err != nil {
-		s.logger.Error("Error while writing output", "error", err)
+		s.logger.LogAttrs(r.Context(), slog.LevelError, "Error while writing output", slog.Any("error", err))
 		return
 	}
 }
