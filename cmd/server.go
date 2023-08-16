@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -35,7 +36,7 @@ var serverCmd = &cobra.Command{
 			Measurement: meas,
 			Timeout:     10 * time.Second,
 		}
-		cmd.Printf("Connecting to InfluxDB at %s with bucket %s and organization %s\n", addr, bucket, org)
+		slog.Info("Connecting to InfluxDB", "addr", addr, "bucket", bucket, "org", org)
 		svc, err := measurement.New(cfg)
 		if err != nil {
 			return err
@@ -43,14 +44,14 @@ var serverCmd = &cobra.Command{
 		defer svc.Close()
 		var authenticator auth.Authenticator
 		if len(accessToken) > 0 {
-			cmd.Printf("Using authentication, %d allowed tokens", len(accessToken))
+			slog.Info("Using authentication", "tokens", len(accessToken))
 			authenticator = auth.Static(accessToken...)
 		} else {
-			cmd.Println("Not using authentication")
+			slog.Info("Not using authentication")
 			authenticator = auth.AlwaysAllow()
 		}
-		srv := server.New(svc, authenticator)
-		cmd.Printf("Starting server at 0.0.0.0:%d\n", port)
+		srv := server.New(svc, authenticator, slog.Default())
+		slog.Info("Starting server", "port", port)
 		return http.ListenAndServe(fmt.Sprintf(":%d", port), srv)
 	},
 }

@@ -3,7 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
-	"log"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -15,12 +15,17 @@ import (
 type Server struct {
 	service measurement.Service
 	mux     *http.ServeMux
+	logger  *slog.Logger
 }
 
-func New(service measurement.Service, authenticator auth.Authenticator) *Server {
+func New(service measurement.Service, authenticator auth.Authenticator, logger *slog.Logger) *Server {
+	if logger == nil {
+		logger = slog.Default()
+	}
 	srv := &Server{
 		service: service,
 		mux:     http.NewServeMux(),
+		logger:  logger,
 	}
 	srv.routes(authenticator)
 	return srv
@@ -44,15 +49,15 @@ func (s *Server) Current(w http.ResponseWriter, r *http.Request) {
 	}
 	loc, err := location(r.URL.Query().Get("tz"))
 	if err != nil {
-		log.Printf("Invalid location %s: %v", r.URL.Query().Get("tz"), err)
-		http.Error(w, "Invalid location", http.StatusBadRequest)
+		s.logger.Warn("Invalid timezone", "timezone", r.URL.Query().Get("tz"), "error", err)
+		http.Error(w, "Invalid timezone", http.StatusBadRequest)
 		return
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 	measurements, err := s.service.Current(ctx)
 	if err != nil {
-		log.Printf("Error while getting measurements: %v", err)
+		s.logger.Error("Error while getting measurements", "error", err)
 		http.Error(w, "Error while getting measurements", http.StatusInternalServerError)
 		return
 	}
@@ -70,7 +75,8 @@ func (s *Server) Current(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if err := json.NewEncoder(w).Encode(js); err != nil {
-		log.Fatal(err)
+		s.logger.Error("Error while writing output", "error", err)
+		return
 	}
 }
 
