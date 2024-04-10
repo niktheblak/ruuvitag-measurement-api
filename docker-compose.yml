@@ -1,0 +1,10 @@
+name: temperature-api
+
+services:
+  server:
+    build: .
+    restart: unless-stopped
+    volumes:
+      - "$PWD/config.toml:/etc/temperature-api/config.toml"
+    ports:
+      - "8180:8180"
