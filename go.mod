@@ -8,7 +8,7 @@ require (
 	github.com/deepmap/oapi-codegen v1.13.4 // indirect
 	github.com/influxdata/influxdb-client-go/v2 v2.12.3
 	github.com/influxdata/line-protocol v0.0.0-20210922203350-b1ad95c89adf // indirect
-	github.com/stretchr/testify v1.8.4
+	github.com/stretchr/testify v1.9.0
 	golang.org/x/net v0.19.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
