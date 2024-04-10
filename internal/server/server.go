@@ -10,6 +10,7 @@ import (
 	"github.com/niktheblak/temperature-api/pkg/auth"
 	"github.com/niktheblak/temperature-api/pkg/measurement"
 	"github.com/niktheblak/temperature-api/pkg/middleware"
+	"github.com/niktheblak/temperature-api/pkg/sensor"
 )
 
 type Server struct {
@@ -40,13 +41,6 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) Current(w http.ResponseWriter, r *http.Request) {
-	type meas struct {
-		Timestamp   string  `json:"ts"`
-		Temperature float64 `json:"temperature"`
-		Humidity    float64 `json:"humidity"`
-		Pressure    float64 `json:"pressure"`
-		DewPoint    float64 `json:"dew_point"`
-	}
 	loc, err := location(r.URL.Query().Get("tz"))
 	if err != nil {
 		s.logger.LogAttrs(r.Context(), slog.LevelWarn, "Invalid timezone", slog.String("timezone", r.URL.Query().Get("tz")), slog.Any("error", err))
@@ -66,12 +60,19 @@ func (s *Server) Current(w http.ResponseWriter, r *http.Request) {
 	js := make(map[string]interface{})
 	for name, m := range measurements {
 		ts := m.Timestamp.In(loc)
-		js[name] = meas{
-			Timestamp:   ts.Format(time.RFC3339),
-			Temperature: m.Temperature,
-			Humidity:    m.Humidity,
-			Pressure:    m.Pressure,
-			DewPoint:    m.DewPoint,
+		js[name] = sensor.Data{
+			Timestamp:         ts,
+			Temperature:       m.Temperature,
+			Humidity:          m.Humidity,
+			Pressure:          m.Pressure,
+			DewPoint:          m.DewPoint,
+			BatteryVoltage:    m.BatteryVoltage,
+			TxPower:           m.TxPower,
+			AccelerationX:     m.AccelerationX,
+			AccelerationY:     m.AccelerationY,
+			AccelerationZ:     m.AccelerationZ,
+			MovementCounter:   m.MovementCounter,
+			MeasurementNumber: m.MeasurementNumber,
 		}
 	}
 	if err := json.NewEncoder(w).Encode(js); err != nil {

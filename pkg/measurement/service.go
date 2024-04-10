@@ -9,6 +9,8 @@ import (
 
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	"github.com/influxdata/influxdb-client-go/v2/api"
+
+	"github.com/niktheblak/temperature-api/pkg/sensor"
 )
 
 const queryTemplate = `from(bucket: "%s")
@@ -30,7 +32,7 @@ type Config struct {
 
 type Service interface {
 	io.Closer
-	Current(ctx context.Context) (map[string]Measurement, error)
+	Current(ctx context.Context) (map[string]sensor.Data, error)
 }
 
 type service struct {
@@ -50,7 +52,7 @@ func New(cfg Config) (Service, error) {
 }
 
 // Current returns current measurements
-func (s *service) Current(ctx context.Context) (measurements map[string]Measurement, err error) {
+func (s *service) Current(ctx context.Context) (measurements map[string]sensor.Data, err error) {
 	q := fmt.Sprintf(queryTemplate, s.cfg.Bucket, s.cfg.Measurement)
 	res, err := s.queryAPI.Query(ctx, q)
 	if err != nil {
@@ -60,7 +62,7 @@ func (s *service) Current(ctx context.Context) (measurements map[string]Measurem
 		closeErr := res.Close()
 		err = errors.Join(err, closeErr)
 	}()
-	measurements = make(map[string]Measurement)
+	measurements = make(map[string]sensor.Data)
 	for res.Next() {
 		r := res.Record()
 		name, ok := r.ValueByKey("name").(string)
@@ -83,6 +85,20 @@ func (s *service) Current(ctx context.Context) (measurements map[string]Measurem
 			m.Pressure = v
 		case "dew_point":
 			m.DewPoint = v
+		case "battery_voltage":
+			m.BatteryVoltage = v
+		case "tx_power":
+			m.TxPower = int(v)
+		case "acceleration_x":
+			m.AccelerationX = int(v)
+		case "acceleration_y":
+			m.AccelerationY = int(v)
+		case "acceleration_z":
+			m.AccelerationZ = int(v)
+		case "movement_counter":
+			m.MovementCounter = int(v)
+		case "measurement_number":
+			m.MeasurementNumber = int(v)
 		}
 		measurements[name] = m
 	}

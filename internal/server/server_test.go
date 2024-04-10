@@ -15,21 +15,21 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/niktheblak/temperature-api/pkg/auth"
-	"github.com/niktheblak/temperature-api/pkg/measurement"
+	"github.com/niktheblak/temperature-api/pkg/sensor"
 )
 
 const testAccessToken = "a65cd12f9bba453"
 
 type mockService struct {
-	Response     map[string]measurement.Measurement
+	Response     map[string]sensor.Data
 	PingResponse error
 }
 
-func (s *mockService) Current(ctx context.Context) (map[string]measurement.Measurement, error) {
+func (s *mockService) Current(ctx context.Context) (map[string]sensor.Data, error) {
 	if s.Response != nil {
 		return s.Response, nil
 	}
-	return map[string]measurement.Measurement{}, nil
+	return map[string]sensor.Data{}, nil
 }
 
 func (s *mockService) Ping(ctx context.Context) error {
@@ -42,12 +42,16 @@ func (s *mockService) Close() error {
 
 func TestServe(t *testing.T) {
 	svc := new(mockService)
-	svc.Response = map[string]measurement.Measurement{
+	svc.Response = map[string]sensor.Data{
 		"Living room": {
-			Timestamp:   time.Date(2020, time.December, 10, 12, 10, 39, 0, time.UTC),
-			Temperature: 23.5,
-			Humidity:    60.0,
-			Pressure:    998.0,
+			Timestamp:         time.Date(2020, time.December, 10, 12, 10, 39, 0, time.UTC),
+			Temperature:       23.5,
+			Humidity:          60.0,
+			Pressure:          998.0,
+			BatteryVoltage:    1.75,
+			TxPower:           11,
+			MovementCounter:   102,
+			MeasurementNumber: 71,
 		},
 	}
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
@@ -65,6 +69,8 @@ func TestServe(t *testing.T) {
 		assert.Equal(t, 23.5, lr["temperature"])
 		assert.Equal(t, 60.0, lr["humidity"])
 		assert.Equal(t, 998.0, lr["pressure"])
+		assert.Equal(t, 102.0, lr["movement_counter"])
+		assert.Equal(t, 71.0, lr["measurement_number"])
 	})
 	t.Run("without token", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/", nil)
