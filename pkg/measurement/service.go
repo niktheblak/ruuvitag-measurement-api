@@ -2,6 +2,7 @@ package measurement
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
@@ -43,7 +44,11 @@ type service struct {
 
 // New creates a new instance of the service using the given config
 func New(cfg Config) (Service, error) {
-	client := influxdb2.NewClient(cfg.Addr, cfg.Token)
+	client := influxdb2.NewClientWithOptions(cfg.Addr, cfg.Token, influxdb2.DefaultOptions().
+		SetUseGZip(true).
+		SetTLSConfig(&tls.Config{
+			InsecureSkipVerify: true,
+		}))
 	return &service{
 		client:   client,
 		queryAPI: client.QueryAPI(cfg.Org),
