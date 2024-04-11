@@ -62,6 +62,7 @@ func (s *Server) Current(w http.ResponseWriter, r *http.Request) {
 		ts := m.Timestamp.In(loc)
 		js[name] = sensor.Data{
 			Timestamp:         ts,
+			Addr:              m.Addr,
 			Temperature:       m.Temperature,
 			Humidity:          m.Humidity,
 			Pressure:          m.Pressure,
