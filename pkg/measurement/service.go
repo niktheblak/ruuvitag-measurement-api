@@ -81,9 +81,8 @@ func (s *service) Current(ctx context.Context) (measurements map[string]sensor.D
 		v, _ := r.ValueByKey("_value").(float64)
 		m := measurements[name]
 		mac, ok := r.ValueByKey("mac").(string)
-		if ok {
-			m.Addr = mac
-		}
+		m.Name = name
+		m.Addr = mac
 		m.Timestamp = r.Time()
 		switch field {
 		case "temperature":
