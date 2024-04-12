@@ -10,8 +10,7 @@ import (
 
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	"github.com/influxdata/influxdb-client-go/v2/api"
-
-	"github.com/niktheblak/temperature-api/pkg/sensor"
+	"github.com/niktheblak/ruuvitag-common/pkg/sensor"
 )
 
 const queryTemplate = `from(bucket: "%s")

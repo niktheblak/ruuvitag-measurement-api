@@ -7,10 +7,11 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/niktheblak/ruuvitag-common/pkg/sensor"
+
 	"github.com/niktheblak/temperature-api/pkg/auth"
 	"github.com/niktheblak/temperature-api/pkg/measurement"
 	"github.com/niktheblak/temperature-api/pkg/middleware"
-	"github.com/niktheblak/temperature-api/pkg/sensor"
 )
 
 type Server struct {
