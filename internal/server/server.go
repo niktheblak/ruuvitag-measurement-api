@@ -64,6 +64,7 @@ func (s *Server) Current(w http.ResponseWriter, r *http.Request) {
 		js[name] = sensor.Data{
 			Timestamp:         ts,
 			Addr:              m.Addr,
+			Name:              m.Name,
 			Temperature:       m.Temperature,
 			Humidity:          m.Humidity,
 			Pressure:          m.Pressure,
