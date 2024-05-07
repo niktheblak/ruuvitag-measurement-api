@@ -4,7 +4,14 @@ services:
   server:
     build: .
     restart: unless-stopped
+    networks:
+      - ruuvitag
     volumes:
       - "$PWD/config.toml:/etc/temperature-api/config.toml"
     ports:
       - "8180:8180"
+
+networks:
+  ruuvitag:
+    name: ruuvitag
+    external: true
