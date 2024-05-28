@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -55,8 +54,7 @@ func TestServe(t *testing.T) {
 			MeasurementNumber: 71,
 		},
 	}
-	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	srv := New(svc, auth.Static(testAccessToken), logger)
+	srv := New(svc, auth.Static(testAccessToken), nil)
 	t.Run("with token", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/", nil)
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", testAccessToken))

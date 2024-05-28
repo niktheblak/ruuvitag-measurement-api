@@ -10,10 +10,6 @@ import (
 func Authenticator(handler http.Handler, authenticator auth.Authenticator) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		token := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
-		if token == "" {
-			forbidden(w)
-			return
-		}
 		err := authenticator.Authenticate(r.Context(), token)
 		if err != nil {
 			forbidden(w)
