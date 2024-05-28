@@ -1,9 +1,14 @@
 package cmd
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
+	"os/signal"
+	"sync"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -41,7 +46,6 @@ var serverCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		defer svc.Close()
 		var authenticator auth.Authenticator
 		if len(accessToken) > 0 {
 			logger.Info("Using authentication", "tokens", len(accessToken))
@@ -50,9 +54,36 @@ var serverCmd = &cobra.Command{
 			logger.Info("Not using authentication")
 			authenticator = auth.AlwaysAllow()
 		}
-		srv := server.New(svc, authenticator, logger)
-		logger.LogAttrs(nil, slog.LevelInfo, "Starting server", slog.Int("port", port))
-		return http.ListenAndServe(fmt.Sprintf(":%d", port), srv)
+		httpServer := &http.Server{
+			Addr:    fmt.Sprintf(":%d", port),
+			Handler: server.New(svc, authenticator, logger),
+		}
+		ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+		defer cancel()
+		go func() {
+			logger.LogAttrs(nil, slog.LevelInfo, "Starting server", slog.Int("port", port))
+			if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+				logger.Error("Failed to start HTTP server", "err", err)
+			}
+		}()
+		var wg sync.WaitGroup
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-ctx.Done()
+			logger.Info("Shutting down service")
+			shutdownCtx := context.Background()
+			shutdownCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+			defer cancel()
+			if err := httpServer.Shutdown(shutdownCtx); err != nil {
+				logger.Error("Failed to shut down HTTP server", "err", err)
+			}
+			if err := svc.Close(); err != nil {
+				logger.Error("Failed to shut down service", "err", err)
+			}
+		}()
+		wg.Wait()
+		return nil
 	},
 }
 
