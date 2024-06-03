@@ -12,6 +12,7 @@ import (
 	"github.com/influxdata/influxdb-client-go/v2/api"
 	"github.com/influxdata/influxdb-client-go/v2/api/query"
 	"github.com/niktheblak/ruuvitag-common/pkg/sensor"
+	"github.com/spf13/cast"
 )
 
 const queryTemplate = `from(bucket: "%s")
@@ -95,10 +96,7 @@ func collate(r *query.FluxRecord, measurements map[string]sensor.Data) {
 	if rawValue == nil {
 		return
 	}
-	v, err := numericValue(rawValue)
-	if err != nil {
-		return
-	}
+	v := cast.ToFloat64(rawValue)
 	m := measurements[name]
 	if m.Name == "" {
 		m.Name = name
@@ -131,25 +129,4 @@ func collate(r *query.FluxRecord, measurements map[string]sensor.Data) {
 		m.MeasurementNumber = int(v)
 	}
 	measurements[name] = m
-}
-
-func numericValue(v interface{}) (float64, error) {
-	switch v := v.(type) {
-	case float64:
-		return v, nil
-	case float32:
-		return float64(v), nil
-	case int:
-		return float64(v), nil
-	case int8:
-		return float64(v), nil
-	case int16:
-		return float64(v), nil
-	case int32:
-		return float64(v), nil
-	case int64:
-		return float64(v), nil
-	default:
-		return 0, errors.New("not a number")
-	}
 }
