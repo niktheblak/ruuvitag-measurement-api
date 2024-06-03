@@ -71,7 +71,6 @@ func (s *service) Current(ctx context.Context) (measurements map[string]sensor.D
 	measurements = make(map[string]sensor.Data)
 	for res.Next() {
 		r := res.Record()
-		fmt.Printf("Received measurement: %+v\n", r.Values())
 		collate(r, measurements)
 	}
 	err = res.Err()
