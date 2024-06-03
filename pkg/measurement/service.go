@@ -10,6 +10,7 @@ import (
 
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	"github.com/influxdata/influxdb-client-go/v2/api"
+	"github.com/influxdata/influxdb-client-go/v2/api/query"
 	"github.com/niktheblak/ruuvitag-common/pkg/sensor"
 )
 
@@ -69,45 +70,7 @@ func (s *service) Current(ctx context.Context) (measurements map[string]sensor.D
 	measurements = make(map[string]sensor.Data)
 	for res.Next() {
 		r := res.Record()
-		name, ok := r.ValueByKey("name").(string)
-		if !ok {
-			continue
-		}
-		field, ok := r.ValueByKey("_field").(string)
-		if !ok {
-			continue
-		}
-		v, _ := r.ValueByKey("_value").(float64)
-		m := measurements[name]
-		mac, ok := r.ValueByKey("mac").(string)
-		m.Name = name
-		m.Addr = mac
-		m.Timestamp = r.Time()
-		switch field {
-		case "temperature":
-			m.Temperature = v
-		case "humidity":
-			m.Humidity = v
-		case "pressure":
-			m.Pressure = v
-		case "dew_point":
-			m.DewPoint = v
-		case "battery_voltage":
-			m.BatteryVoltage = v
-		case "tx_power":
-			m.TxPower = int(v)
-		case "acceleration_x":
-			m.AccelerationX = int(v)
-		case "acceleration_y":
-			m.AccelerationY = int(v)
-		case "acceleration_z":
-			m.AccelerationZ = int(v)
-		case "movement_counter":
-			m.MovementCounter = int(v)
-		case "measurement_number":
-			m.MeasurementNumber = int(v)
-		}
-		measurements[name] = m
+		collate(r, measurements)
 	}
 	err = res.Err()
 	return
@@ -116,4 +79,77 @@ func (s *service) Current(ctx context.Context) (measurements map[string]sensor.D
 func (s *service) Close() error {
 	s.client.Close()
 	return nil
+}
+
+func collate(r *query.FluxRecord, measurements map[string]sensor.Data) {
+	name, ok := r.ValueByKey("name").(string)
+	if !ok {
+		return
+	}
+	field, ok := r.ValueByKey("_field").(string)
+	if !ok {
+		return
+	}
+	v, ok := r.ValueByKey("_value").(float64)
+	if !ok {
+		return
+	}
+	m := measurements[name]
+	if m.Name == "" {
+		m.Name = name
+	}
+	mac, ok := r.ValueByKey("mac").(string)
+	if ok && m.Addr == "" {
+		m.Addr = mac
+	}
+	if m.Timestamp.IsZero() {
+		m.Timestamp = r.Time()
+	}
+	switch field {
+	case "temperature":
+		if m.Temperature == 0 {
+			m.Temperature = v
+		}
+	case "humidity":
+		if m.Humidity == 0 {
+			m.Humidity = v
+		}
+	case "pressure":
+		if m.Pressure == 0 {
+			m.Pressure = v
+		}
+	case "dew_point":
+		if m.DewPoint == 0 {
+			m.DewPoint = v
+		}
+	case "battery_voltage":
+		if m.BatteryVoltage == 0 {
+			m.BatteryVoltage = v
+		}
+	case "tx_power":
+		if m.TxPower == 0 {
+			m.TxPower = int(v)
+		}
+	case "acceleration_x":
+		if m.AccelerationX == 0 {
+			m.AccelerationX = int(v)
+		}
+	case "acceleration_y":
+		if m.AccelerationY == 0 {
+			m.AccelerationY = int(v)
+		}
+	case "acceleration_z":
+		if m.AccelerationZ == 0 {
+			m.AccelerationZ = int(v)
+		}
+	case "movement_counter":
+		if m.MovementCounter == 0 {
+			m.MovementCounter = int(v)
+		}
+	case "measurement_number":
+		if m.MeasurementNumber == 0 {
+			m.MeasurementNumber = int(v)
+		}
+	}
+	measurements[name] = m
 }
