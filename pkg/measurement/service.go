@@ -70,6 +70,7 @@ func (s *service) Current(ctx context.Context) (measurements map[string]sensor.D
 	measurements = make(map[string]sensor.Data)
 	for res.Next() {
 		r := res.Record()
+		fmt.Printf("Received measurement: %+v\n", r.Values())
 		collate(r, measurements)
 	}
 	err = res.Err()
@@ -90,66 +91,65 @@ func collate(r *query.FluxRecord, measurements map[string]sensor.Data) {
 	if !ok {
 		return
 	}
-	v, ok := r.ValueByKey("_value").(float64)
-	if !ok {
+	rawValue := r.ValueByKey("_value")
+	if rawValue == nil {
+		return
+	}
+	v, err := numericValue(rawValue)
+	if err != nil {
 		return
 	}
 	m := measurements[name]
 	if m.Name == "" {
 		m.Name = name
 	}
-	mac, ok := r.ValueByKey("mac").(string)
-	if ok && m.Addr == "" {
-		m.Addr = mac
-	}
-	if m.Timestamp.IsZero() {
-		m.Timestamp = r.Time()
-	}
+	mac, _ := r.ValueByKey("mac").(string)
+	m.Addr = mac
+	m.Timestamp = r.Time()
 	switch field {
 	case "temperature":
-		if m.Temperature == 0 {
-			m.Temperature = v
-		}
+		m.Temperature = v
 	case "humidity":
-		if m.Humidity == 0 {
-			m.Humidity = v
-		}
+		m.Humidity = v
 	case "pressure":
-		if m.Pressure == 0 {
-			m.Pressure = v
-		}
+		m.Pressure = v
 	case "dew_point":
-		if m.DewPoint == 0 {
-			m.DewPoint = v
-		}
+		m.DewPoint = v
 	case "battery_voltage":
-		if m.BatteryVoltage == 0 {
-			m.BatteryVoltage = v
-		}
+		m.BatteryVoltage = v
 	case "tx_power":
-		if m.TxPower == 0 {
-			m.TxPower = int(v)
-		}
+		m.TxPower = int(v)
 	case "acceleration_x":
-		if m.AccelerationX == 0 {
-			m.AccelerationX = int(v)
-		}
+		m.AccelerationX = int(v)
 	case "acceleration_y":
-		if m.AccelerationY == 0 {
-			m.AccelerationY = int(v)
-		}
+		m.AccelerationY = int(v)
 	case "acceleration_z":
-		if m.AccelerationZ == 0 {
-			m.AccelerationZ = int(v)
-		}
+		m.AccelerationZ = int(v)
 	case "movement_counter":
-		if m.MovementCounter == 0 {
-			m.MovementCounter = int(v)
-		}
+		m.MovementCounter = int(v)
 	case "measurement_number":
-		if m.MeasurementNumber == 0 {
-			m.MeasurementNumber = int(v)
-		}
+		m.MeasurementNumber = int(v)
 	}
 	measurements[name] = m
+}
+
+func numericValue(v interface{}) (float64, error) {
+	switch v := v.(type) {
+	case float64:
+		return v, nil
+	case float32:
+		return float64(v), nil
+	case int:
+		return float64(v), nil
+	case int8:
+		return float64(v), nil
+	case int16:
+		return float64(v), nil
+	case int32:
+		return float64(v), nil
+	case int64:
+		return float64(v), nil
+	default:
+		return 0, errors.New("not a number")
+	}
 }
