@@ -2,7 +2,7 @@ module github.com/niktheblak/temperature-api
 
 go 1.22
 
-toolchain go1.22.2
+toolchain go1.22.4
 
 require (
 	github.com/influxdata/influxdb-client-go/v2 v2.13.0
@@ -14,6 +14,7 @@ require (
 
 require (
 	github.com/niktheblak/ruuvitag-common v1.0.1
+	github.com/spf13/cast v1.6.0
 	github.com/spf13/cobra v1.8.0
 	github.com/spf13/viper v1.18.2
 )
@@ -35,7 +36,6 @@ require (
 	github.com/sagikazarmark/slog-shim v0.1.0 // indirect
 	github.com/sourcegraph/conc v0.3.0 // indirect
 	github.com/spf13/afero v1.11.0 // indirect
-	github.com/spf13/cast v1.6.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
