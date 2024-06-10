@@ -24,25 +24,25 @@ var serverCmd = &cobra.Command{
 	Short:        "Start temperature API server",
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		var (
-			addr        = viper.GetString("influxdb.addr")
-			org         = viper.GetString("influxdb.org")
-			token       = viper.GetString("influxdb.token")
-			bucket      = viper.GetString("influxdb.bucket")
-			meas        = viper.GetString("influxdb.measurement")
-			port        = viper.GetInt("server.port")
-			accessToken = viper.GetStringSlice("server.token")
+		psqlInfo := fmt.Sprintf(
+			"host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
+			viper.GetString("timescaledb.host"),
+			viper.GetInt("timescaledb.port"),
+			viper.GetString("timescaledb.username"),
+			viper.GetString("timescaledb.password"),
+			viper.GetString("timescaledb.database"),
 		)
-		cfg := measurement.Config{
-			Addr:        addr,
-			Org:         org,
-			Token:       token,
-			Bucket:      bucket,
-			Measurement: meas,
-			Timeout:     10 * time.Second,
-		}
-		logger.LogAttrs(nil, slog.LevelInfo, "Connecting to InfluxDB", slog.String("addr", addr), slog.String("bucket", bucket), slog.String("org", org))
-		svc, err := measurement.New(cfg)
+		accessToken := viper.GetStringSlice("server.token")
+		logger.LogAttrs(
+			nil,
+			slog.LevelInfo,
+			"Connecting to TimescaleDB",
+			slog.String("host", viper.GetString("timescaledb.host")),
+			slog.Int("port", viper.GetInt("timescaledb.port")),
+			slog.String("database", viper.GetString("timescaledb.database")),
+			slog.String("table", viper.GetString("timescaledb.table")),
+		)
+		svc, err := measurement.New(psqlInfo, viper.GetString("timescaledb.table"))
 		if err != nil {
 			return err
 		}
@@ -55,13 +55,13 @@ var serverCmd = &cobra.Command{
 			authenticator = auth.AlwaysAllow()
 		}
 		httpServer := &http.Server{
-			Addr:    fmt.Sprintf(":%d", port),
+			Addr:    fmt.Sprintf(":%d", viper.GetInt("server.port")),
 			Handler: server.New(svc, authenticator, logger),
 		}
 		ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 		defer cancel()
 		go func() {
-			logger.LogAttrs(nil, slog.LevelInfo, "Starting server", slog.Int("port", port))
+			logger.LogAttrs(nil, slog.LevelInfo, "Starting server", slog.Int("port", viper.GetInt("server.port")))
 			if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 				logger.Error("Failed to start HTTP server", "err", err)
 			}
@@ -88,19 +88,19 @@ var serverCmd = &cobra.Command{
 }
 
 func init() {
-	serverCmd.Flags().String("influxdb.addr", "", "InfluxDB server address")
-	serverCmd.Flags().String("influxdb.org", "", "InfluxDB organization")
-	serverCmd.Flags().String("influxdb.token", "", "InfluxDB token")
-	serverCmd.Flags().String("influxdb.bucket", "", "InfluxDB bucket")
-	serverCmd.Flags().String("influxdb.measurement", "", "InfluxDB measurement")
+	serverCmd.Flags().Bool("timescaledb.enabled", false, "Store measurements to TimescaleDB")
+	serverCmd.Flags().String("timescaledb.host", "", "TimescaleDB host")
+	serverCmd.Flags().Int("timescaledb.port", 0, "TimescaleDB port")
+	serverCmd.Flags().String("timescaledb.username", "", "TimescaleDB username")
+	serverCmd.Flags().String("timescaledb.password", "", "TimescaleDB username")
+	serverCmd.Flags().String("timescaledb.database", "", "TimescaleDB database")
+	serverCmd.Flags().String("timescaledb.table", "", "TimescaleDB table")
 	serverCmd.Flags().Int("server.port", 0, "Server port")
 	serverCmd.Flags().StringSlice("server.token", nil, "Allowed API access tokens")
 
 	cobra.CheckErr(viper.BindPFlags(serverCmd.Flags()))
 
-	viper.SetDefault("influxdb.addr", "http://127.0.0.1:8086")
-	viper.SetDefault("influxdb.bucket", "RuuviTag")
-	viper.SetDefault("influxdb.measurement", "ruuvitag")
+	viper.SetDefault("timescaledb.port", "5432")
 	viper.SetDefault("server.port", 8080)
 
 	rootCmd.AddCommand(serverCmd)
