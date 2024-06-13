@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"io"
+	"log/slog"
 	"time"
 
 	_ "github.com/lib/pq"
@@ -12,7 +13,7 @@ import (
 )
 
 const queryTemplate = `SELECT
-		%[1]s.time as "time",
+		%[1]s.%[2]s as "%[2]s",
 		%[1]s.mac as "mac",
 		%[1]s.name as "name",
 		%[1]s.temperature as "temperature",
@@ -31,33 +32,47 @@ const queryTemplate = `SELECT
 	  FROM %[1]s
 	  GROUP BY name) b
 	ON %[1]s.name = b.name AND %[1]s.time = b.maxTime
-	WHERE %[1]s.name IN (SELECT DISTINCT name FROM %[1]s);`
+	WHERE %[1]s.name IN (SELECT name FROM %[3]s);`
+
+type Config struct {
+	PsqlInfo   string
+	Table      string
+	NameTable  string
+	TimeColumn string
+	Logger     *slog.Logger
+}
 
 type Service interface {
+	Current(ctx context.Context) (measurements map[string]sensor.Data, err error)
 	io.Closer
-	Current(ctx context.Context) (map[string]sensor.Data, error)
 }
 
 type service struct {
-	db    *sql.DB
-	table string
+	db     *sql.DB
+	cfg    Config
+	logger *slog.Logger
 }
 
 // New creates a new instance of the service using the given config
-func New(psqlInfo, table string) (Service, error) {
-	db, err := sql.Open("postgres", psqlInfo)
+func New(cfg Config) (Service, error) {
+	if cfg.Logger == nil {
+		cfg.Logger = slog.New(slog.NewTextHandler(io.Discard, nil))
+	}
+	db, err := sql.Open("postgres", cfg.PsqlInfo)
 	if err != nil {
 		return nil, err
 	}
 	return &service{
-		db:    db,
-		table: table,
+		db:     db,
+		cfg:    cfg,
+		logger: cfg.Logger,
 	}, nil
 }
 
 // Current returns current measurements
 func (s *service) Current(ctx context.Context) (measurements map[string]sensor.Data, err error) {
-	q := fmt.Sprintf(queryTemplate, s.table)
+	q := fmt.Sprintf(queryTemplate, s.cfg.Table, s.cfg.TimeColumn, s.cfg.NameTable)
+	s.logger.LogAttrs(ctx, slog.LevelDebug, "Querying current measurements", slog.String("query", q))
 	res, err := s.db.QueryContext(ctx, q)
 	if err != nil {
 		return
@@ -147,6 +162,7 @@ func (s *service) Current(ctx context.Context) (measurements map[string]sensor.D
 			MeasurementNumber: *measurementNumber,
 			DewPoint:          *dewPoint,
 		}
+		s.logger.LogAttrs(ctx, slog.LevelDebug, "Found measurements", slog.Any("measurements", measurements))
 	}
 	err = res.Err()
 	return

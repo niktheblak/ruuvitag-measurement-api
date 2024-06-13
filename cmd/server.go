@@ -24,25 +24,42 @@ var serverCmd = &cobra.Command{
 	Short:        "Start temperature API server",
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		var (
+			accessToken    = viper.GetStringSlice("server.token")
+			psqlHost       = viper.GetString("postgres.host")
+			psqlPort       = viper.GetInt("postgres.port")
+			psqlUsername   = viper.GetString("postgres.username")
+			psqlPassword   = viper.GetString("postgres.password")
+			psqlDatabase   = viper.GetString("postgres.database")
+			psqlTable      = viper.GetString("postgres.table")
+			psqlNameTable  = viper.GetString("postgres.name_table")
+			psqlTimeColumn = viper.GetString("postgres.column.time")
+		)
 		psqlInfo := fmt.Sprintf(
 			"host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
-			viper.GetString("timescaledb.host"),
-			viper.GetInt("timescaledb.port"),
-			viper.GetString("timescaledb.username"),
-			viper.GetString("timescaledb.password"),
-			viper.GetString("timescaledb.database"),
+			psqlHost,
+			psqlPort,
+			psqlUsername,
+			psqlPassword,
+			psqlDatabase,
 		)
-		accessToken := viper.GetStringSlice("server.token")
 		logger.LogAttrs(
 			nil,
 			slog.LevelInfo,
 			"Connecting to TimescaleDB",
-			slog.String("host", viper.GetString("timescaledb.host")),
-			slog.Int("port", viper.GetInt("timescaledb.port")),
-			slog.String("database", viper.GetString("timescaledb.database")),
-			slog.String("table", viper.GetString("timescaledb.table")),
+			slog.String("host", psqlHost),
+			slog.Int("port", psqlPort),
+			slog.String("database", psqlDatabase),
+			slog.String("table", psqlTable),
+			slog.String("name_table", psqlNameTable),
 		)
-		svc, err := measurement.New(psqlInfo, viper.GetString("timescaledb.table"))
+		svc, err := measurement.New(measurement.Config{
+			PsqlInfo:   psqlInfo,
+			Table:      psqlTable,
+			NameTable:  psqlNameTable,
+			TimeColumn: psqlTimeColumn,
+			Logger:     logger,
+		})
 		if err != nil {
 			return err
 		}
@@ -88,19 +105,21 @@ var serverCmd = &cobra.Command{
 }
 
 func init() {
-	serverCmd.Flags().Bool("timescaledb.enabled", false, "Store measurements to TimescaleDB")
-	serverCmd.Flags().String("timescaledb.host", "", "TimescaleDB host")
-	serverCmd.Flags().Int("timescaledb.port", 0, "TimescaleDB port")
-	serverCmd.Flags().String("timescaledb.username", "", "TimescaleDB username")
-	serverCmd.Flags().String("timescaledb.password", "", "TimescaleDB username")
-	serverCmd.Flags().String("timescaledb.database", "", "TimescaleDB database")
-	serverCmd.Flags().String("timescaledb.table", "", "TimescaleDB table")
+	serverCmd.Flags().String("postgres.host", "", "host")
+	serverCmd.Flags().Int("postgres.port", 0, "port")
+	serverCmd.Flags().String("postgres.username", "", "username")
+	serverCmd.Flags().String("postgres.password", "", "username")
+	serverCmd.Flags().String("postgres.database", "", "database name")
+	serverCmd.Flags().String("postgres.table", "", "table name")
+	serverCmd.Flags().String("postgres.name_table", "", "RuuviTag name table name")
+	serverCmd.Flags().String("postgres.column.time", "", "time column name")
 	serverCmd.Flags().Int("server.port", 0, "Server port")
 	serverCmd.Flags().StringSlice("server.token", nil, "Allowed API access tokens")
 
 	cobra.CheckErr(viper.BindPFlags(serverCmd.Flags()))
 
-	viper.SetDefault("timescaledb.port", "5432")
+	viper.SetDefault("postgres.port", "5432")
+	viper.SetDefault("postgres.column.time", "time")
 	viper.SetDefault("server.port", 8080)
 
 	rootCmd.AddCommand(serverCmd)
