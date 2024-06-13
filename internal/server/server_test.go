@@ -21,8 +21,7 @@ import (
 const testAccessToken = "a65cd12f9bba453"
 
 type mockService struct {
-	Response     map[string]sensor.Data
-	PingResponse error
+	Response map[string]sensor.Data
 }
 
 func (s *mockService) Current(ctx context.Context) (map[string]sensor.Data, error) {
@@ -30,10 +29,6 @@ func (s *mockService) Current(ctx context.Context) (map[string]sensor.Data, erro
 		return s.Response, nil
 	}
 	return map[string]sensor.Data{}, nil
-}
-
-func (s *mockService) Ping(ctx context.Context) error {
-	return s.PingResponse
 }
 
 func (s *mockService) Close() error {
