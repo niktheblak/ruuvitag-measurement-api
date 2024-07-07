@@ -11,7 +11,7 @@ require (
 
 require (
 	github.com/lib/pq v1.10.9
-	github.com/niktheblak/ruuvitag-common v1.0.1
+	github.com/niktheblak/ruuvitag-common v1.1.1
 	github.com/spf13/cast v1.6.0
 	github.com/spf13/cobra v1.8.1
 	github.com/spf13/viper v1.19.0
