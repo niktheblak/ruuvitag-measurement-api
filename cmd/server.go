@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/niktheblak/ruuvitag-common/pkg/sensor"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
@@ -19,22 +20,27 @@ import (
 	"github.com/niktheblak/temperature-api/pkg/measurement"
 )
 
+var DefaultColumns = sensor.DefaultColumnMap
+
 var serverCmd = &cobra.Command{
 	Use:          "server",
 	Short:        "Start temperature API server",
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		var (
-			accessToken    = viper.GetStringSlice("server.token")
-			psqlHost       = viper.GetString("postgres.host")
-			psqlPort       = viper.GetInt("postgres.port")
-			psqlUsername   = viper.GetString("postgres.username")
-			psqlPassword   = viper.GetString("postgres.password")
-			psqlDatabase   = viper.GetString("postgres.database")
-			psqlTable      = viper.GetString("postgres.table")
-			psqlNameTable  = viper.GetString("postgres.name_table")
-			psqlTimeColumn = viper.GetString("postgres.column.time")
+			accessToken   = viper.GetStringSlice("server.token")
+			psqlHost      = viper.GetString("postgres.host")
+			psqlPort      = viper.GetInt("postgres.port")
+			psqlUsername  = viper.GetString("postgres.username")
+			psqlPassword  = viper.GetString("postgres.password")
+			psqlDatabase  = viper.GetString("postgres.database")
+			psqlTable     = viper.GetString("postgres.table")
+			psqlNameTable = viper.GetString("postgres.name_table")
+			columns       = viper.GetStringMapString("columns")
 		)
+		if len(columns) == 0 {
+			columns = DefaultColumns
+		}
 		psqlInfo := fmt.Sprintf(
 			"host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
 			psqlHost,
@@ -52,13 +58,14 @@ var serverCmd = &cobra.Command{
 			slog.String("database", psqlDatabase),
 			slog.String("table", psqlTable),
 			slog.String("name_table", psqlNameTable),
+			slog.Any("columns", columns),
 		)
 		svc, err := measurement.New(measurement.Config{
-			PsqlInfo:   psqlInfo,
-			Table:      psqlTable,
-			NameTable:  psqlNameTable,
-			TimeColumn: psqlTimeColumn,
-			Logger:     logger,
+			PsqlInfo:  psqlInfo,
+			Table:     psqlTable,
+			NameTable: psqlNameTable,
+			Columns:   columns,
+			Logger:    logger,
 		})
 		if err != nil {
 			return err
@@ -112,14 +119,13 @@ func init() {
 	serverCmd.Flags().String("postgres.database", "", "database name")
 	serverCmd.Flags().String("postgres.table", "", "table name")
 	serverCmd.Flags().String("postgres.name_table", "", "RuuviTag name table name")
-	serverCmd.Flags().String("postgres.column.time", "", "time column name")
 	serverCmd.Flags().Int("server.port", 0, "Server port")
 	serverCmd.Flags().StringSlice("server.token", nil, "Allowed API access tokens")
+	serverCmd.Flags().StringToString("columns", nil, "columns to use")
 
 	cobra.CheckErr(viper.BindPFlags(serverCmd.Flags()))
 
 	viper.SetDefault("postgres.port", "5432")
-	viper.SetDefault("postgres.column.time", "time")
 	viper.SetDefault("server.port", 8080)
 
 	rootCmd.AddCommand(serverCmd)

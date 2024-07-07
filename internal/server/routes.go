@@ -7,8 +7,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/niktheblak/ruuvitag-common/pkg/sensor"
-
 	"github.com/niktheblak/temperature-api/pkg/measurement"
 )
 
@@ -26,7 +24,7 @@ func currentHandler(service measurement.Service, logger *slog.Logger) http.Handl
 		}
 		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 		defer cancel()
-		measurements, err := service.Current(ctx)
+		measurements, err := service.Current(ctx, loc)
 		if err != nil {
 			logger.LogAttrs(r.Context(), slog.LevelError, "Error while getting measurements", slog.Any("error", err))
 			http.Error(w, "Error while getting measurements", http.StatusInternalServerError)
@@ -34,27 +32,7 @@ func currentHandler(service measurement.Service, logger *slog.Logger) http.Handl
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Cache-Control", "no-store, max-age=0")
-		js := make(map[string]interface{})
-		for name, m := range measurements {
-			ts := m.Timestamp.In(loc)
-			js[name] = sensor.Data{
-				Timestamp:         ts,
-				Addr:              m.Addr,
-				Name:              m.Name,
-				Temperature:       m.Temperature,
-				Humidity:          m.Humidity,
-				Pressure:          m.Pressure,
-				DewPoint:          m.DewPoint,
-				BatteryVoltage:    m.BatteryVoltage,
-				TxPower:           m.TxPower,
-				AccelerationX:     m.AccelerationX,
-				AccelerationY:     m.AccelerationY,
-				AccelerationZ:     m.AccelerationZ,
-				MovementCounter:   m.MovementCounter,
-				MeasurementNumber: m.MeasurementNumber,
-			}
-		}
-		if err := json.NewEncoder(w).Encode(js); err != nil {
+		if err := json.NewEncoder(w).Encode(measurements); err != nil {
 			logger.LogAttrs(r.Context(), slog.LevelError, "Error while writing output", slog.Any("error", err))
 			return
 		}
