@@ -3,9 +3,10 @@ package measurement
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"io"
 	"log/slog"
+	"strings"
+	"text/template"
 	"time"
 
 	_ "github.com/lib/pq"
@@ -13,26 +14,26 @@ import (
 )
 
 const queryTemplate = `SELECT
-		%[1]s.%[2]s as "%[2]s",
-		%[1]s.mac as "mac",
-		%[1]s.name as "name",
-		%[1]s.temperature as "temperature",
-		%[1]s.humidity as "humidity",
-		%[1]s.pressure as "pressure",
-		%[1]s.battery_voltage as "battery_voltage",
-		%[1]s.tx_power as "tx_power",
-		%[1]s.acceleration_x as "acceleration_x",
-		%[1]s.acceleration_y as "acceleration_y",
-		%[1]s.acceleration_z as "acceleration_z",
-		%[1]s.movement_counter as "movement_counter",
-		%[1]s.measurement_number as "measurement_number",
-		%[1]s.dew_point as "dew_point"
-	FROM %[1]s
-	JOIN (SELECT name, max(time) maxTime
-	  FROM %[1]s
-	  GROUP BY name) b
-	ON %[1]s.name = b.name AND %[1]s.time = b.maxTime
-	WHERE %[1]s.name IN (SELECT name FROM %[3]s);`
+	{{.Table}}.{{.TimeColumn}} as "{{.TimeColumn}}",
+	{{.Table}}.mac as "mac",
+	{{.Table}}.name as "name",
+	{{.Table}}.temperature as "temperature",
+	{{.Table}}.humidity as "humidity",
+	{{.Table}}.pressure as "pressure",
+	{{.Table}}.battery_voltage as "battery_voltage",
+	{{.Table}}.tx_power as "tx_power",
+	{{.Table}}.acceleration_x as "acceleration_x",
+	{{.Table}}.acceleration_y as "acceleration_y",
+	{{.Table}}.acceleration_z as "acceleration_z",
+	{{.Table}}.movement_counter as "movement_counter",
+	{{.Table}}.measurement_number as "measurement_number",
+	{{.Table}}.dew_point as "dew_point"
+FROM {{.Table}}
+JOIN (SELECT name, max(time) maxTime
+	FROM {{.Table}}
+	GROUP BY name) b
+ON {{.Table}}.name = b.name AND {{.Table}}.time = b.maxTime
+WHERE {{.Table}}.name IN (SELECT name FROM {{.NameTable}});`
 
 type Config struct {
 	PsqlInfo   string
@@ -50,6 +51,7 @@ type Service interface {
 type service struct {
 	db     *sql.DB
 	cfg    Config
+	q      string
 	logger *slog.Logger
 }
 
@@ -62,18 +64,26 @@ func New(cfg Config) (Service, error) {
 	if err != nil {
 		return nil, err
 	}
+	tmpl, err := template.New("query").Parse(queryTemplate)
+	if err != nil {
+		return nil, err
+	}
+	builder := new(strings.Builder)
+	if err := tmpl.Execute(builder, cfg); err != nil {
+		return nil, err
+	}
+	cfg.Logger.LogAttrs(nil, slog.LevelDebug, "Rendered query", slog.String("query", builder.String()))
 	return &service{
 		db:     db,
 		cfg:    cfg,
+		q:      builder.String(),
 		logger: cfg.Logger,
 	}, nil
 }
 
 // Current returns current measurements
 func (s *service) Current(ctx context.Context) (measurements map[string]sensor.Data, err error) {
-	q := fmt.Sprintf(queryTemplate, s.cfg.Table, s.cfg.TimeColumn, s.cfg.NameTable)
-	s.logger.LogAttrs(ctx, slog.LevelDebug, "Querying current measurements", slog.String("query", q))
-	res, err := s.db.QueryContext(ctx, q)
+	res, err := s.db.QueryContext(ctx, s.q)
 	if err != nil {
 		return
 	}
