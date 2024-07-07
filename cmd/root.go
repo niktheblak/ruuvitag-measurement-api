@@ -41,12 +41,11 @@ func Execute() error {
 func init() {
 	cobra.OnInitialize(initConfig)
 
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file path")
-	rootCmd.PersistentFlags().StringVar(&logLevel, "loglevel", "info", "log level")
+	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "config file path")
+	rootCmd.PersistentFlags().StringVar(&logLevel, "loglevel", "", "log level")
 
-	if err := viper.BindPFlags(rootCmd.PersistentFlags()); err != nil {
-		panic(err)
-	}
+	cobra.CheckErr(viper.BindPFlags(rootCmd.PersistentFlags()))
+
 	viper.SetDefault("loglevel", "info")
 }
 
@@ -55,13 +54,14 @@ func initConfig() {
 		// Use config file from the flag.
 		viper.SetConfigFile(cfgFile)
 	} else {
-		viper.AddConfigPath("/etc/temperature-api")
+		viper.AddConfigPath(".")
 		viper.AddConfigPath("$HOME/.temperature-api")
+		viper.AddConfigPath("/etc/temperature-api")
 		viper.SetConfigName("config")
 	}
 	viper.AutomaticEnv()
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	if err := viper.ReadInConfig(); err != nil {
-		slog.Default().LogAttrs(nil, slog.LevelInfo, "Could not read config file, using only command line options", slog.String("config", viper.ConfigFileUsed()))
+		// use only command line options
 	}
 }
