@@ -23,7 +23,7 @@ type mockService struct {
 	Response map[string]psql.Data
 }
 
-func (s *mockService) Current(ctx context.Context, loc *time.Location) (measurements map[string]psql.Data, err error) {
+func (s *mockService) Current(ctx context.Context, loc *time.Location, columns []string) (measurements map[string]psql.Data, err error) {
 	if s.Response != nil {
 		for k, v := range s.Response {
 			v.Timestamp = v.Timestamp.In(loc)
