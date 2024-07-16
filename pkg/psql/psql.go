@@ -52,56 +52,43 @@ func Collect(res Scanner, columns []string) (Data, error) {
 		case "time":
 			pointers[i] = &d.Timestamp
 		case "mac":
-			var v string
-			d.Addr = &v
+			d.Addr = ZeroStringPointer()
 			pointers[i] = d.Addr
 		case "name":
-			var v string
-			d.Name = &v
+			d.Name = ZeroStringPointer()
 			pointers[i] = d.Name
 		case "temperature":
-			var v float64
-			d.Temperature = &v
+			d.Temperature = ZeroFloat64Pointer()
 			pointers[i] = d.Temperature
 		case "humidity":
-			var v float64
-			d.Humidity = &v
+			d.Humidity = ZeroFloat64Pointer()
 			pointers[i] = d.Humidity
 		case "pressure":
-			var v float64
-			d.Pressure = &v
+			d.Pressure = ZeroFloat64Pointer()
 			pointers[i] = d.Pressure
 		case "battery_voltage":
-			var v float64
-			d.BatteryVoltage = &v
+			d.BatteryVoltage = ZeroFloat64Pointer()
 			pointers[i] = d.BatteryVoltage
 		case "tx_power":
-			var v int
-			d.TxPower = &v
+			d.TxPower = ZeroIntPointer()
 			pointers[i] = d.TxPower
 		case "acceleration_x":
-			var v int
-			d.AccelerationX = &v
+			d.AccelerationX = ZeroIntPointer()
 			pointers[i] = d.AccelerationX
 		case "acceleration_y":
-			var v int
-			d.AccelerationY = &v
+			d.AccelerationY = ZeroIntPointer()
 			pointers[i] = d.AccelerationY
 		case "acceleration_z":
-			var v int
-			d.AccelerationZ = &v
+			d.AccelerationZ = ZeroIntPointer()
 			pointers[i] = d.AccelerationZ
 		case "movement_counter":
-			var v int
-			d.MovementCounter = &v
+			d.MovementCounter = ZeroIntPointer()
 			pointers[i] = d.MovementCounter
 		case "measurement_number":
-			var v int
-			d.MeasurementNumber = &v
+			d.MeasurementNumber = ZeroIntPointer()
 			pointers[i] = d.MeasurementNumber
 		case "dew_point":
-			var v float64
-			d.DewPoint = &v
+			d.DewPoint = ZeroFloat64Pointer()
 			pointers[i] = d.DewPoint
 		default:
 			return Data{}, fmt.Errorf("unknown column: %s", column)
@@ -111,4 +98,31 @@ func Collect(res Scanner, columns []string) (Data, error) {
 		return Data{}, err
 	}
 	return d, nil
+}
+
+func Float64Pointer(v float64) *float64 {
+	return &v
+}
+
+func ZeroFloat64Pointer() *float64 {
+	var v float64
+	return &v
+}
+
+func IntPointer(v int) *int {
+	return &v
+}
+
+func ZeroIntPointer() *int {
+	var v int
+	return &v
+}
+
+func StringPointer(v string) *string {
+	return &v
+}
+
+func ZeroStringPointer() *string {
+	var v string
+	return &v
 }
