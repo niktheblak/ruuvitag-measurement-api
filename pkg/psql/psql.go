@@ -27,67 +27,73 @@ type Scanner interface {
 	Scan(dest ...any) error
 }
 
-func BuildQuery(table, nameTable string, columns []string) string {
+type QueryBuilder struct {
+	Table     string
+	NameTable string
+	Columns   map[string]string
+}
+
+func (q *QueryBuilder) Build(columns []string) string {
 	builder := new(strings.Builder)
 	builder.WriteString("SELECT")
 	var columnSelects []string
 	for _, column := range columns {
-		columnSelects = append(columnSelects, fmt.Sprintf(" %[1]s.%[2]s as \"%[2]s\"", table, column))
+		columnSelects = append(columnSelects, fmt.Sprintf(" %[1]s.%[2]s as \"%[2]s\"", q.Table, column))
 	}
 	builder.WriteString(strings.Join(columnSelects, ","))
-	builder.WriteString(fmt.Sprintf(" FROM %s", table))
-	builder.WriteString(fmt.Sprintf(" JOIN (SELECT name, max(time) maxTime FROM %s GROUP BY name) b", table))
-	builder.WriteString(fmt.Sprintf(" ON %[1]s.name = b.name AND %[1]s.time = b.maxTime", table))
-	builder.WriteString(fmt.Sprintf(" WHERE %s.name IN (SELECT name FROM %s)", table, nameTable))
+	builder.WriteString(fmt.Sprintf(" FROM %s", q.Table))
+	builder.WriteString(fmt.Sprintf(" JOIN (SELECT name, max(time) maxTime FROM %s GROUP BY name) b", q.Table))
+	builder.WriteString(fmt.Sprintf(" ON %[1]s.name = b.name AND %[1]s.time = b.maxTime", q.Table))
+	builder.WriteString(fmt.Sprintf(" WHERE %s.name IN (SELECT name FROM %s)", q.Table, q.NameTable))
 	return builder.String()
 }
 
-func Collect(res Scanner, columns []string) (Data, error) {
+func (q *QueryBuilder) Collect(res Scanner, columns []string) (Data, error) {
 	// XXX: the *sql.Row.Scan(any...) function is a bit painful to work with
 	// dynamic / configurable columns so this implementation is pretty gnarly. Beware!
 	var d Data
 	pointers := make([]any, len(columns))
 	for i, column := range columns {
 		switch column {
-		case "time":
+		case q.Columns["time"]:
 			pointers[i] = &d.Timestamp
-		case "mac":
+		case q.Columns["mac"]:
 			d.Addr = ZeroStringPointer()
 			pointers[i] = d.Addr
-		case "name":
+		case q.Columns["name"]:
 			d.Name = ZeroStringPointer()
 			pointers[i] = d.Name
-		case "temperature":
+		case q.Columns["temperature"]:
 			d.Temperature = ZeroFloat64Pointer()
 			pointers[i] = d.Temperature
-		case "humidity":
+		case q.Columns["humidity"]:
 			d.Humidity = ZeroFloat64Pointer()
 			pointers[i] = d.Humidity
-		case "pressure":
+		case q.Columns["pressure"]:
 			d.Pressure = ZeroFloat64Pointer()
 			pointers[i] = d.Pressure
-		case "battery_voltage":
+		case q.Columns["battery_voltage"]:
 			d.BatteryVoltage = ZeroFloat64Pointer()
 			pointers[i] = d.BatteryVoltage
-		case "tx_power":
+		case q.Columns["tx_power"]:
 			d.TxPower = ZeroIntPointer()
 			pointers[i] = d.TxPower
-		case "acceleration_x":
+		case q.Columns["acceleration_x"]:
 			d.AccelerationX = ZeroIntPointer()
 			pointers[i] = d.AccelerationX
-		case "acceleration_y":
+		case q.Columns["acceleration_y"]:
 			d.AccelerationY = ZeroIntPointer()
 			pointers[i] = d.AccelerationY
-		case "acceleration_z":
+		case q.Columns["acceleration_z"]:
 			d.AccelerationZ = ZeroIntPointer()
 			pointers[i] = d.AccelerationZ
-		case "movement_counter":
+		case q.Columns["movement_counter"]:
 			d.MovementCounter = ZeroIntPointer()
 			pointers[i] = d.MovementCounter
-		case "measurement_number":
+		case q.Columns["measurement_number"]:
 			d.MeasurementNumber = ZeroIntPointer()
 			pointers[i] = d.MeasurementNumber
-		case "dew_point":
+		case q.Columns["dew_point"]:
 			d.DewPoint = ZeroFloat64Pointer()
 			pointers[i] = d.DewPoint
 		default:

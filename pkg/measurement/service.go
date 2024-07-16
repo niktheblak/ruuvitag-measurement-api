@@ -37,6 +37,7 @@ type service struct {
 	nameTable   string
 	columnMap   map[string]string
 	columnNames map[string]string
+	qb          *psql.QueryBuilder
 	logger      *slog.Logger
 }
 
@@ -69,7 +70,12 @@ func New(cfg Config) (Service, error) {
 		nameTable:   cfg.NameTable,
 		columnMap:   cfg.Columns,
 		columnNames: columnNames,
-		logger:      cfg.Logger,
+		qb: &psql.QueryBuilder{
+			Table:     cfg.Table,
+			NameTable: cfg.NameTable,
+			Columns:   cfg.Columns,
+		},
+		logger: cfg.Logger,
 	}, nil
 }
 
@@ -84,7 +90,7 @@ func (s *service) Current(ctx context.Context, loc *time.Location, columns []str
 		return
 	}
 	s.logger.LogAttrs(nil, slog.LevelDebug, "Response columns", slog.Any("columns", columns))
-	q := psql.BuildQuery(s.table, s.nameTable, columns)
+	q := s.qb.Build(columns)
 	s.logger.LogAttrs(ctx, slog.LevelDebug, "Rendered query", slog.String("query", q))
 	res, err := s.db.QueryContext(ctx, q)
 	if err != nil {
@@ -92,7 +98,7 @@ func (s *service) Current(ctx context.Context, loc *time.Location, columns []str
 	}
 	measurements = make(map[string]psql.Data)
 	for res.Next() {
-		d, err := psql.Collect(res, columns)
+		d, err := s.qb.Collect(res, columns)
 		if err != nil {
 			return nil, err
 		}
