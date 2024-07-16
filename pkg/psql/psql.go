@@ -20,7 +20,7 @@ type Data struct {
 	AccelerationZ     *int      `json:"acceleration_z,omitempty"`
 	MovementCounter   *int      `json:"movement_counter,omitempty"`
 	MeasurementNumber *int      `json:"measurement_number,omitempty"`
-	Timestamp         time.Time `json:"ts"`
+	Timestamp         time.Time `json:"time"`
 }
 
 type Scanner interface {
