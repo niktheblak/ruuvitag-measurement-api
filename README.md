@@ -1,19 +1,27 @@
-# temperature-api
-API for reading current RuuviTag temperatures from InfluxDB
+# ruuvitag-measurement-api
+API for reading current RuuviTag temperatures from PostgreSQL (or TimescaleDB).
 
 ## Usage
 
-Generate an access token for InfluxDB 2.x using the InfluxDB tools.
-Provide InfluxDB address and credentials via environemnt variables and run
-the `main.go` executable.
+Create a config file (TOML or YAML) with your PostgreSQL credentials:
+
+```toml
+[postgres]
+host = "my-postgres-instance.cloud"
+port = 5432
+database = "ruuvitag"
+username = "measurement_api"
+password = "..."
+table = "ruuvitag"
+name_table = "ruuvitag_names"
+
+[server]
+port = 8180
+token = ["..."]
+```
+
+Then run the server:
 
 ```shell
-export INFLUXDB_ADDR=http://influxdb:8086 # this can be a remote server address as well
-export INFLUXDB_ORG=myorg
-export INFLUXDB_TOKEN=token_from_influxdb
-export INFLUXDB_BUCKET=mybucket
-export INFLUXDB_MEASUREMENT=mymeasurement
-export HTTP_PORT=8080
-
-go run main.go
+go run main.go server --config config.toml
 ```
