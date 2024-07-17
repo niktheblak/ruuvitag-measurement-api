@@ -10,13 +10,14 @@ import (
 	"time"
 
 	"github.com/niktheblak/temperature-api/pkg/measurement"
+	"github.com/niktheblak/temperature-api/pkg/psql"
 )
 
-func addRoutes(mux *http.ServeMux, service measurement.Service, logger *slog.Logger) {
-	mux.Handle("/", currentHandler(service, logger))
+func addRoutes(mux *http.ServeMux, service measurement.Service, columns map[string]string, logger *slog.Logger) {
+	mux.Handle("/", currentHandler(service, columns, logger))
 }
 
-func currentHandler(service measurement.Service, logger *slog.Logger) http.Handler {
+func currentHandler(service measurement.Service, columnMap map[string]string, logger *slog.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		loc, err := parseLocation(r.URL.Query().Get("tz"))
 		if err != nil {
@@ -45,7 +46,11 @@ func currentHandler(service measurement.Service, logger *slog.Logger) http.Handl
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Cache-Control", "no-store, max-age=0")
-		if err := json.NewEncoder(w).Encode(measurements); err != nil {
+		var renamed []map[string]any
+		for _, m := range measurements {
+			renamed = append(renamed, renameColumns(m, columnMap))
+		}
+		if err := json.NewEncoder(w).Encode(renamed); err != nil {
 			logger.LogAttrs(r.Context(), slog.LevelError, "Error while writing output", slog.Any("error", err))
 			return
 		}
@@ -66,4 +71,46 @@ func parseColumns(columns string) []string {
 		return nil
 	}
 	return strings.Split(columns, ",")
+}
+
+func renameColumns(d psql.Data, columns map[string]string) map[string]any {
+	m := make(map[string]any)
+	m[columns["time"]] = d.Timestamp
+	if c, ok := columns["mac"]; ok && d.Addr != nil {
+		m[c] = *d.Addr
+	}
+	if c, ok := columns["name"]; ok && d.Name != nil {
+		m[c] = *d.Name
+	}
+	if c, ok := columns["temperature"]; ok && d.Temperature != nil {
+		m[c] = *d.Temperature
+	}
+	if c, ok := columns["humidity"]; ok && d.Humidity != nil {
+		m[c] = *d.Humidity
+	}
+	if c, ok := columns["pressure"]; ok && d.Pressure != nil {
+		m[c] = *d.Pressure
+	}
+	if c, ok := columns["battery_voltage"]; ok && d.BatteryVoltage != nil {
+		m[c] = *d.BatteryVoltage
+	}
+	if c, ok := columns["tx_power"]; ok && d.TxPower != nil {
+		m[c] = *d.TxPower
+	}
+	if c, ok := columns["acceleration_x"]; ok && d.AccelerationX != nil {
+		m[c] = *d.AccelerationX
+	}
+	if c, ok := columns["acceleration_y"]; ok && d.AccelerationY != nil {
+		m[c] = *d.AccelerationY
+	}
+	if c, ok := columns["acceleration_z"]; ok && d.AccelerationZ != nil {
+		m[c] = *d.AccelerationZ
+	}
+	if c, ok := columns["movement_counter"]; ok && d.MovementCounter != nil {
+		m[c] = *d.MovementCounter
+	}
+	if c, ok := columns["measurement_number"]; ok && d.MeasurementNumber != nil {
+		m[c] = *d.MeasurementNumber
+	}
+	return m
 }

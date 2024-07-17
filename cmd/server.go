@@ -80,7 +80,7 @@ var serverCmd = &cobra.Command{
 		}
 		httpServer := &http.Server{
 			Addr:    fmt.Sprintf(":%d", viper.GetInt("server.port")),
-			Handler: server.New(svc, authenticator, logger),
+			Handler: server.New(svc, columns, authenticator, logger),
 		}
 		ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 		defer cancel()

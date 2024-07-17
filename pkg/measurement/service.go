@@ -27,18 +27,17 @@ type Config struct {
 }
 
 type Service interface {
-	Current(ctx context.Context, loc *time.Location, columns []string) (measurements []map[string]any, err error)
+	Current(ctx context.Context, loc *time.Location, columns []string) (measurements []psql.Data, err error)
 	io.Closer
 }
 
 type service struct {
-	db          *sql.DB
-	table       string
-	nameTable   string
-	columnMap   map[string]string
-	columnNames map[string]string
-	qb          *psql.QueryBuilder
-	logger      *slog.Logger
+	db        *sql.DB
+	table     string
+	nameTable string
+	columnMap map[string]string
+	qb        *psql.QueryBuilder
+	logger    *slog.Logger
 }
 
 // New creates a new instance of the service using the given config
@@ -46,30 +45,19 @@ func New(cfg Config) (Service, error) {
 	if cfg.Logger == nil {
 		cfg.Logger = slog.New(slog.NewTextHandler(io.Discard, nil))
 	}
-	_, ok := cfg.Columns["time"]
-	if !ok {
-		return nil, fmt.Errorf("column time is required")
+	if err := validateConfigColumns(cfg.Columns); err != nil {
+		return nil, err
 	}
-	_, nameOK := cfg.Columns["name"]
-	_, macOK := cfg.Columns["mac"]
-	if !nameOK && !macOK {
-		return nil, fmt.Errorf("identifier column name or mac is required")
-	}
-	columnNames := make(map[string]string)
-	for k, v := range cfg.Columns {
-		columnNames[v] = k
-	}
-	cfg.Logger.LogAttrs(nil, slog.LevelDebug, "Columns", slog.Any("column_map", cfg.Columns), slog.Any("column_names", columnNames))
+	cfg.Logger.LogAttrs(nil, slog.LevelDebug, "Columns", slog.Any("column_map", cfg.Columns))
 	db, err := sql.Open("postgres", cfg.PsqlInfo)
 	if err != nil {
 		return nil, err
 	}
 	return &service{
-		db:          db,
-		table:       cfg.Table,
-		nameTable:   cfg.NameTable,
-		columnMap:   cfg.Columns,
-		columnNames: columnNames,
+		db:        db,
+		table:     cfg.Table,
+		nameTable: cfg.NameTable,
+		columnMap: cfg.Columns,
 		qb: &psql.QueryBuilder{
 			Table:     cfg.Table,
 			NameTable: cfg.NameTable,
@@ -80,9 +68,10 @@ func New(cfg Config) (Service, error) {
 }
 
 // Current returns current measurements
-func (s *service) Current(ctx context.Context, loc *time.Location, columns []string) ([]map[string]any, error) {
+func (s *service) Current(ctx context.Context, loc *time.Location, columns []string) ([]psql.Data, error) {
 	if len(columns) == 0 {
-		for c := range s.columnNames {
+		// no columns explicitly requested; return all configured columns
+		for _, c := range s.columnMap {
 			columns = append(columns, c)
 		}
 	}
@@ -106,18 +95,27 @@ func (s *service) Current(ctx context.Context, loc *time.Location, columns []str
 		measurements = append(measurements, d)
 		s.logger.LogAttrs(ctx, slog.LevelDebug, "Found measurement", slog.Any("data", d))
 	}
-	if err := res.Err(); err != nil {
-		return nil, err
-	}
-	var renamed []map[string]any
-	for _, d := range measurements {
-		renamed = append(renamed, psql.RenameColumns(d, s.columnMap))
-	}
-	return renamed, nil
+	return measurements, res.Err()
 }
 
 func (s *service) Close() error {
 	return s.db.Close()
+}
+
+func validateConfigColumns(columns map[string]string) error {
+	if len(columns) == 0 {
+		return fmt.Errorf("columns cannot be empty")
+	}
+	_, ok := columns["time"]
+	if !ok {
+		return fmt.Errorf("column time is required")
+	}
+	_, nameOK := columns["name"]
+	_, macOK := columns["mac"]
+	if !nameOK && !macOK {
+		return fmt.Errorf("identifier column name or mac is required")
+	}
+	return nil
 }
 
 func (s *service) validateColumns(requestedColumns []string) error {
@@ -125,7 +123,14 @@ func (s *service) validateColumns(requestedColumns []string) error {
 		return fmt.Errorf("%w: requested columns cannot be empty", ErrInvalidColumn)
 	}
 	for _, column := range requestedColumns {
-		if _, ok := s.columnNames[column]; !ok {
+		ok := false
+		for _, c := range s.columnMap {
+			if c == column {
+				ok = true
+				break
+			}
+		}
+		if !ok {
 			return fmt.Errorf("%w: unknown column %s", ErrInvalidColumn, column)
 		}
 	}

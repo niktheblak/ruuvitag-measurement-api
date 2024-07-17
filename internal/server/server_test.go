@@ -21,15 +21,15 @@ import (
 const testAccessToken = "a65cd12f9bba453"
 
 type mockService struct {
-	Response map[string]psql.Data
+	Response []psql.Data
 }
 
-func (s *mockService) Current(ctx context.Context, loc *time.Location, columns []string) (measurements []map[string]any, err error) {
+func (s *mockService) Current(ctx context.Context, loc *time.Location, columns []string) (measurements []psql.Data, err error) {
 	if s.Response != nil {
-		var response []map[string]any
+		var response []psql.Data
 		for _, v := range s.Response {
 			v.Timestamp = v.Timestamp.In(loc)
-			response = append(response, psql.RenameColumns(v, sensor.DefaultColumnMap))
+			response = append(response, v)
 		}
 		return response, nil
 	}
@@ -42,8 +42,8 @@ func (s *mockService) Close() error {
 
 func TestServe(t *testing.T) {
 	svc := new(mockService)
-	svc.Response = map[string]psql.Data{
-		"Living room": {
+	svc.Response = []psql.Data{
+		{
 			Timestamp:         time.Date(2020, time.December, 10, 12, 10, 39, 0, time.UTC),
 			Temperature:       psql.Float64Pointer(23.5),
 			Humidity:          psql.Float64Pointer(60.0),
@@ -54,7 +54,7 @@ func TestServe(t *testing.T) {
 			MeasurementNumber: psql.IntPointer(71),
 		},
 	}
-	srv := New(svc, auth.Static(testAccessToken), nil)
+	srv := New(svc, sensor.DefaultColumnMap, auth.Static(testAccessToken), nil)
 	t.Run("with token", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/", nil)
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", testAccessToken))
