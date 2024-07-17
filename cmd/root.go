@@ -16,8 +16,8 @@ var (
 )
 
 var rootCmd = &cobra.Command{
-	Use:          "temperature-api",
-	Short:        "API for reading current environment measurements from InfluxDB",
+	Use:          "ruuvitag-measurement-api",
+	Short:        "REST API for reading current RuuviTag measurement values from PostgreSQL",
 	SilenceUsage: true,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		var level = new(slog.LevelVar)
@@ -55,8 +55,8 @@ func initConfig() {
 		viper.SetConfigFile(cfgFile)
 	} else {
 		viper.AddConfigPath(".")
-		viper.AddConfigPath("$HOME/.temperature-api")
-		viper.AddConfigPath("/etc/temperature-api")
+		viper.AddConfigPath("$HOME/.ruuvitag-measurement-api")
+		viper.AddConfigPath("/etc/ruuvitag-measurement-api")
 		viper.SetConfigName("config")
 	}
 	viper.AutomaticEnv()

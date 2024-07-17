@@ -1,4 +1,4 @@
-name: temperature-api
+name: ruuvitag-measurement-api
 
 services:
   server:
@@ -7,7 +7,7 @@ services:
     networks:
       - ruuvitag
     volumes:
-      - "$PWD/config.toml:/etc/temperature-api/config.toml"
+      - "$PWD/config.toml:/etc/ruuvitag-measurement-api/config.toml"
     ports:
       - "8180:8180"
 
