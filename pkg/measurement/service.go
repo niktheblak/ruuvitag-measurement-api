@@ -27,7 +27,7 @@ type Config struct {
 }
 
 type Service interface {
-	Current(ctx context.Context, loc *time.Location, columns []string) (measurements map[string]map[string]any, err error)
+	Current(ctx context.Context, loc *time.Location, columns []string) (measurements []map[string]any, err error)
 	io.Closer
 }
 
@@ -80,7 +80,7 @@ func New(cfg Config) (Service, error) {
 }
 
 // Current returns current measurements
-func (s *service) Current(ctx context.Context, loc *time.Location, columns []string) (map[string]map[string]any, error) {
+func (s *service) Current(ctx context.Context, loc *time.Location, columns []string) ([]map[string]any, error) {
 	if len(columns) == 0 {
 		for c := range s.columnNames {
 			columns = append(columns, c)
@@ -96,32 +96,22 @@ func (s *service) Current(ctx context.Context, loc *time.Location, columns []str
 	if err != nil {
 		return nil, err
 	}
-	measurements := make(map[string]psql.Data)
+	var measurements []psql.Data
 	for res.Next() {
 		d, err := s.qb.Collect(res, columns)
 		if err != nil {
 			return nil, err
 		}
 		d.Timestamp = d.Timestamp.In(loc)
-		var name string
-		if d.Name != nil {
-			name = *d.Name
-			d.Name = nil
-		} else if d.Addr != nil {
-			name = *d.Addr
-			d.Addr = nil
-		} else {
-			return nil, fmt.Errorf("column name or mac is required")
-		}
-		measurements[name] = d
+		measurements = append(measurements, d)
 		s.logger.LogAttrs(ctx, slog.LevelDebug, "Found measurement", slog.Any("data", d))
 	}
-	if err = res.Err(); err != nil {
+	if err := res.Err(); err != nil {
 		return nil, err
 	}
-	renamed := make(map[string]map[string]any)
-	for cn, d := range measurements {
-		renamed[cn] = psql.RenameColumns(d, s.columnMap)
+	var renamed []map[string]any
+	for _, d := range measurements {
+		renamed = append(renamed, psql.RenameColumns(d, s.columnMap))
 	}
 	return renamed, nil
 }
