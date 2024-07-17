@@ -5,9 +5,9 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/niktheblak/temperature-api/pkg/auth"
-	"github.com/niktheblak/temperature-api/pkg/measurement"
-	"github.com/niktheblak/temperature-api/pkg/middleware"
+	"github.com/niktheblak/ruuvitag-measurement-api/pkg/auth"
+	"github.com/niktheblak/ruuvitag-measurement-api/pkg/measurement"
+	"github.com/niktheblak/ruuvitag-measurement-api/pkg/middleware"
 )
 
 func New(service measurement.Service, columns map[string]string, authenticator auth.Authenticator, logger *slog.Logger) http.Handler {

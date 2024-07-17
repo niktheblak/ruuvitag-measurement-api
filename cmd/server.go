@@ -15,9 +15,9 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
-	"github.com/niktheblak/temperature-api/internal/server"
-	"github.com/niktheblak/temperature-api/pkg/auth"
-	"github.com/niktheblak/temperature-api/pkg/measurement"
+	"github.com/niktheblak/ruuvitag-measurement-api/internal/server"
+	"github.com/niktheblak/ruuvitag-measurement-api/pkg/auth"
+	"github.com/niktheblak/ruuvitag-measurement-api/pkg/measurement"
 )
 
 var DefaultColumns = sensor.DefaultColumnMap

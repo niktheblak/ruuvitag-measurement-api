@@ -11,7 +11,7 @@ import (
 
 	_ "github.com/lib/pq"
 
-	"github.com/niktheblak/temperature-api/pkg/psql"
+	"github.com/niktheblak/ruuvitag-measurement-api/pkg/psql"
 )
 
 var (

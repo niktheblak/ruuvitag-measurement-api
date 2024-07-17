@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/niktheblak/temperature-api/pkg/auth"
+	"github.com/niktheblak/ruuvitag-measurement-api/pkg/auth"
 )
 
 func TestAuthenticator(t *testing.T) {

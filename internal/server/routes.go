@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/niktheblak/temperature-api/pkg/measurement"
-	"github.com/niktheblak/temperature-api/pkg/psql"
+	"github.com/niktheblak/ruuvitag-measurement-api/pkg/measurement"
+	"github.com/niktheblak/ruuvitag-measurement-api/pkg/psql"
 )
 
 func addRoutes(mux *http.ServeMux, service measurement.Service, columns map[string]string, logger *slog.Logger) {

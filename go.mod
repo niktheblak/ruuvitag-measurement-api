@@ -1,4 +1,4 @@
-module github.com/niktheblak/temperature-api
+module github.com/niktheblak/ruuvitag-measurement-api
 
 go 1.22
 

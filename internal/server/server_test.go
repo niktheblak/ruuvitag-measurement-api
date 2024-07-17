@@ -14,8 +14,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/niktheblak/temperature-api/pkg/auth"
-	"github.com/niktheblak/temperature-api/pkg/psql"
+	"github.com/niktheblak/ruuvitag-measurement-api/pkg/auth"
+	"github.com/niktheblak/ruuvitag-measurement-api/pkg/psql"
 )
 
 const testAccessToken = "a65cd12f9bba453"

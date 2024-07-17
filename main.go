@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/niktheblak/temperature-api/cmd"
+	"github.com/niktheblak/ruuvitag-measurement-api/cmd"
 )
 
 func main() {

@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/niktheblak/temperature-api/pkg/auth"
+	"github.com/niktheblak/ruuvitag-measurement-api/pkg/auth"
 )
 
 func Authenticator(handler http.Handler, authenticator auth.Authenticator) http.Handler {
