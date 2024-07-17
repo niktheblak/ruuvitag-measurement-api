@@ -27,7 +27,7 @@ type Config struct {
 }
 
 type Service interface {
-	Current(ctx context.Context, loc *time.Location, columns []string) (measurements map[string]psql.Data, err error)
+	Current(ctx context.Context, loc *time.Location, columns []string) (measurements map[string]map[string]any, err error)
 	io.Closer
 }
 
@@ -80,23 +80,23 @@ func New(cfg Config) (Service, error) {
 }
 
 // Current returns current measurements
-func (s *service) Current(ctx context.Context, loc *time.Location, columns []string) (measurements map[string]psql.Data, err error) {
+func (s *service) Current(ctx context.Context, loc *time.Location, columns []string) (map[string]map[string]any, error) {
 	if len(columns) == 0 {
 		for c := range s.columnNames {
 			columns = append(columns, c)
 		}
 	}
-	if err = s.validateColumns(columns); err != nil {
-		return
+	if err := s.validateColumns(columns); err != nil {
+		return nil, err
 	}
 	s.logger.LogAttrs(nil, slog.LevelDebug, "Response columns", slog.Any("columns", columns))
 	q := s.qb.Build(columns)
 	s.logger.LogAttrs(ctx, slog.LevelDebug, "Rendered query", slog.String("query", q))
 	res, err := s.db.QueryContext(ctx, q)
 	if err != nil {
-		return
+		return nil, err
 	}
-	measurements = make(map[string]psql.Data)
+	measurements := make(map[string]psql.Data)
 	for res.Next() {
 		d, err := s.qb.Collect(res, columns)
 		if err != nil {
@@ -106,16 +106,24 @@ func (s *service) Current(ctx context.Context, loc *time.Location, columns []str
 		var name string
 		if d.Name != nil {
 			name = *d.Name
+			d.Name = nil
 		} else if d.Addr != nil {
 			name = *d.Addr
+			d.Addr = nil
 		} else {
 			return nil, fmt.Errorf("column name or mac is required")
 		}
 		measurements[name] = d
 		s.logger.LogAttrs(ctx, slog.LevelDebug, "Found measurement", slog.Any("data", d))
 	}
-	err = res.Err()
-	return
+	if err = res.Err(); err != nil {
+		return nil, err
+	}
+	renamed := make(map[string]map[string]any)
+	for cn, d := range measurements {
+		renamed[cn] = psql.RenameColumns(d, s.columnMap)
+	}
+	return renamed, nil
 }
 
 func (s *service) Close() error {

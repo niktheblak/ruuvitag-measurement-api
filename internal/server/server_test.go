@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/niktheblak/ruuvitag-common/pkg/sensor"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -23,15 +24,16 @@ type mockService struct {
 	Response map[string]psql.Data
 }
 
-func (s *mockService) Current(ctx context.Context, loc *time.Location, columns []string) (measurements map[string]psql.Data, err error) {
+func (s *mockService) Current(ctx context.Context, loc *time.Location, columns []string) (measurements map[string]map[string]any, err error) {
 	if s.Response != nil {
+		response := make(map[string]map[string]any)
 		for k, v := range s.Response {
 			v.Timestamp = v.Timestamp.In(loc)
-			s.Response[k] = v
+			response[k] = psql.RenameColumns(v, sensor.DefaultColumnMap)
 		}
-		return s.Response, nil
+		return response, nil
 	}
-	return map[string]psql.Data{}, nil
+	return map[string]map[string]any{}, nil
 }
 
 func (s *mockService) Close() error {
@@ -62,7 +64,7 @@ func TestServe(t *testing.T) {
 		m := decode(t, w.Body)
 		require.IsType(t, map[string]interface{}{}, m["Living room"])
 		lr := m["Living room"].(map[string]interface{})
-		assert.Equal(t, "2020-12-10T12:10:39Z", lr["ts"])
+		assert.Equal(t, "2020-12-10T12:10:39Z", lr["time"])
 		assert.Equal(t, 23.5, lr["temperature"])
 		assert.Equal(t, 60.0, lr["humidity"])
 		assert.Equal(t, 998.0, lr["pressure"])
@@ -84,7 +86,7 @@ func TestServe(t *testing.T) {
 		m := decode(t, w.Body)
 		require.IsType(t, map[string]interface{}{}, m["Living room"])
 		lr := m["Living room"].(map[string]interface{})
-		assert.Equal(t, "2020-12-10T14:10:39+02:00", lr["ts"])
+		assert.Equal(t, "2020-12-10T14:10:39+02:00", lr["time"])
 	})
 }
 
