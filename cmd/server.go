@@ -15,8 +15,9 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
+	"github.com/niktheblak/web-common/pkg/auth"
+
 	"github.com/niktheblak/ruuvitag-measurement-api/internal/server"
-	"github.com/niktheblak/ruuvitag-measurement-api/pkg/auth"
 	"github.com/niktheblak/ruuvitag-measurement-api/pkg/measurement"
 )
 

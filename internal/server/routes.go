@@ -13,10 +13,6 @@ import (
 	"github.com/niktheblak/ruuvitag-measurement-api/pkg/psql"
 )
 
-func addRoutes(mux *http.ServeMux, service measurement.Service, columns map[string]string, logger *slog.Logger) {
-	mux.Handle("/", currentHandler(service, columns, logger))
-}
-
 func currentHandler(service measurement.Service, columnMap map[string]string, logger *slog.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		loc, err := parseLocation(r.URL.Query().Get("tz"))

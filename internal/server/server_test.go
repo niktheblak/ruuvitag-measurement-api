@@ -14,7 +14,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/niktheblak/ruuvitag-measurement-api/pkg/auth"
+	"github.com/niktheblak/web-common/pkg/auth"
+
 	"github.com/niktheblak/ruuvitag-measurement-api/pkg/psql"
 )
 
@@ -34,6 +35,10 @@ func (s *mockService) Current(ctx context.Context, loc *time.Location, columns [
 		return response, nil
 	}
 	return nil, nil
+}
+
+func (s *mockService) Ping(ctx context.Context) error {
+	return nil
 }
 
 func (s *mockService) Close() error {

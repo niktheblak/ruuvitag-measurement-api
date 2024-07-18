@@ -28,6 +28,7 @@ type Config struct {
 
 type Service interface {
 	Current(ctx context.Context, loc *time.Location, columns []string) (measurements []psql.Data, err error)
+	Ping(ctx context.Context) error
 	io.Closer
 }
 
@@ -96,6 +97,10 @@ func (s *service) Current(ctx context.Context, loc *time.Location, columns []str
 		s.logger.LogAttrs(ctx, slog.LevelDebug, "Found measurement", slog.Any("data", d))
 	}
 	return measurements, res.Err()
+}
+
+func (s *service) Ping(ctx context.Context) error {
+	return s.db.PingContext(ctx)
 }
 
 func (s *service) Close() error {
