@@ -25,8 +25,8 @@ github.com/mitchellh/mapstructure v1.5.0 h1:jeMsZIYE/09sWLaz43PL7Gy6RuMjD2eJVyua
 github.com/mitchellh/mapstructure v1.5.0/go.mod h1:bFUtVrKA4DC2yAKiSyO/QUcy7e+RRV2QTWOzhPopBRo=
 github.com/niktheblak/ruuvitag-common v1.1.1 h1:Ld8LCitNZfekZl0WlOjl4myoEaahMA8f6OJYTbmrRgQ=
 github.com/niktheblak/ruuvitag-common v1.1.1/go.mod h1:LCo/TOOlVl/7u95ISdhxLDSIOWaS7RIo7Rz5U6RJ4oA=
-github.com/niktheblak/web-common v1.1.0 h1:PSd+ud9JyOn84DgPXhFAlVq/qf9UUA+itqkFasZbm84=
-github.com/niktheblak/web-common v1.1.0/go.mod h1:AkHx+OblQx5ux/tlGiUzp9ltWhQOMaSICqUB3lSLusI=
+github.com/niktheblak/web-common v1.1.1 h1:MP6Fo5w50dFvkvWd6P9O2T3s14Ew9ZdDn/ya6o0s/J4=
+github.com/niktheblak/web-common v1.1.1/go.mod h1:AkHx+OblQx5ux/tlGiUzp9ltWhQOMaSICqUB3lSLusI=
 github.com/pelletier/go-toml/v2 v2.2.2 h1:aYUidT7k73Pcl9nb2gScu7NSrKCSHIDE89b3+6Wq+LM=
 github.com/pelletier/go-toml/v2 v2.2.2/go.mod h1:1t835xjRzz80PqgE6HHgN2JOsmgYu/h4qDAS4n929Rs=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=

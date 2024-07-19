@@ -79,7 +79,7 @@ var serverCmd = &cobra.Command{
 			logger.Info("Not using authentication")
 			authenticator = auth.AlwaysAllow()
 		}
-		httpServer := graceful.Graceful{
+		httpServer := graceful.Shutdown{
 			Server: &http.Server{
 				Addr:    fmt.Sprintf(":%d", viper.GetInt("server.port")),
 				Handler: server.New(svc, columns, authenticator, logger),
