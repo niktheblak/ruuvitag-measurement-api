@@ -7,8 +7,6 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
-	"os/signal"
-	"sync"
 	"time"
 
 	"github.com/niktheblak/ruuvitag-common/pkg/sensor"
@@ -16,6 +14,8 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/niktheblak/web-common/pkg/auth"
+
+	"github.com/niktheblak/web-common/pkg/graceful"
 
 	"github.com/niktheblak/ruuvitag-measurement-api/internal/server"
 	"github.com/niktheblak/ruuvitag-measurement-api/pkg/measurement"
@@ -79,36 +79,15 @@ var serverCmd = &cobra.Command{
 			logger.Info("Not using authentication")
 			authenticator = auth.AlwaysAllow()
 		}
-		httpServer := &http.Server{
-			Addr:    fmt.Sprintf(":%d", viper.GetInt("server.port")),
-			Handler: server.New(svc, columns, authenticator, logger),
+		httpServer := graceful.Graceful{
+			Server: &http.Server{
+				Addr:    fmt.Sprintf(":%d", viper.GetInt("server.port")),
+				Handler: server.New(svc, columns, authenticator, logger),
+			},
+			ShutdownTimeout: 5 * time.Second,
+			Signals:         []os.Signal{os.Interrupt},
 		}
-		ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
-		defer cancel()
-		go func() {
-			logger.LogAttrs(nil, slog.LevelInfo, "Starting server", slog.Int("port", viper.GetInt("server.port")))
-			if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-				logger.Error("Failed to start HTTP server", "err", err)
-			}
-		}()
-		var wg sync.WaitGroup
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			<-ctx.Done()
-			logger.Info("Shutting down service")
-			shutdownCtx := context.Background()
-			shutdownCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-			defer cancel()
-			if err := httpServer.Shutdown(shutdownCtx); err != nil {
-				logger.Error("Failed to shut down HTTP server", "err", err)
-			}
-			if err := svc.Close(); err != nil {
-				logger.Error("Failed to shut down service", "err", err)
-			}
-		}()
-		wg.Wait()
-		return nil
+		return errors.Join(httpServer.Serve(context.Background()), svc.Close())
 	},
 }
 
