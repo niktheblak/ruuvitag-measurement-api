@@ -11,10 +11,10 @@ import (
 	"github.com/niktheblak/web-common/pkg/healthcheck"
 	"github.com/niktheblak/web-common/pkg/middleware"
 
-	"github.com/niktheblak/ruuvitag-measurement-api/pkg/measurement"
+	"github.com/niktheblak/ruuvitag-measurement-api/pkg/ruuvitag"
 )
 
-func New(service measurement.Service, columns map[string]string, authenticator auth.Authenticator, logger *slog.Logger) http.Handler {
+func New(service ruuvitag.Service, columns map[string]string, authenticator auth.Authenticator, logger *slog.Logger) http.Handler {
 	if logger == nil {
 		logger = slog.New(slog.NewTextHandler(io.Discard, nil))
 	}

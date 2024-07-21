@@ -1,4 +1,4 @@
-package measurement
+package ruuvitag
 
 import (
 	"context"
@@ -7,11 +7,11 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"strings"
 	"time"
 
 	_ "github.com/lib/pq"
-
-	"github.com/niktheblak/ruuvitag-measurement-api/pkg/psql"
+	"github.com/niktheblak/ruuvitag-common/pkg/sensor"
 )
 
 var (
@@ -27,7 +27,7 @@ type Config struct {
 }
 
 type Service interface {
-	Current(ctx context.Context, loc *time.Location, columns []string) (measurements []psql.Data, err error)
+	Current(ctx context.Context, loc *time.Location, columns []string) (measurements []sensor.Fields, err error)
 	Ping(ctx context.Context) error
 	io.Closer
 }
@@ -37,7 +37,7 @@ type service struct {
 	table     string
 	nameTable string
 	columnMap map[string]string
-	qb        *psql.QueryBuilder
+	qb        *QueryBuilder
 	logger    *slog.Logger
 }
 
@@ -59,7 +59,7 @@ func New(cfg Config) (Service, error) {
 		table:     cfg.Table,
 		nameTable: cfg.NameTable,
 		columnMap: cfg.Columns,
-		qb: &psql.QueryBuilder{
+		qb: &QueryBuilder{
 			Table:     cfg.Table,
 			NameTable: cfg.NameTable,
 			Columns:   cfg.Columns,
@@ -69,7 +69,7 @@ func New(cfg Config) (Service, error) {
 }
 
 // Current returns current measurements
-func (s *service) Current(ctx context.Context, loc *time.Location, columns []string) ([]psql.Data, error) {
+func (s *service) Current(ctx context.Context, loc *time.Location, columns []string) ([]sensor.Fields, error) {
 	if len(columns) == 0 {
 		// no columns explicitly requested; return all configured columns
 		for _, c := range s.columnMap {
@@ -86,7 +86,7 @@ func (s *service) Current(ctx context.Context, loc *time.Location, columns []str
 	if err != nil {
 		return nil, err
 	}
-	var measurements []psql.Data
+	var measurements []sensor.Fields
 	for res.Next() {
 		d, err := s.qb.Collect(res, columns)
 		if err != nil {
@@ -167,4 +167,74 @@ func (s *service) validateColumns(requestedColumns []string) error {
 		return fmt.Errorf("%w: identifier column %s or %s is required", ErrInvalidColumn, s.columnMap["name"], s.columnMap["mac"])
 	}
 	return nil
+}
+
+type Scanner interface {
+	Scan(dest ...any) error
+}
+
+type QueryBuilder struct {
+	Table     string
+	NameTable string
+	Columns   map[string]string
+}
+
+func (q *QueryBuilder) Build(columns []string) string {
+	builder := new(strings.Builder)
+	builder.WriteString("SELECT")
+	var columnSelects []string
+	for _, column := range columns {
+		columnSelects = append(columnSelects, fmt.Sprintf(" %[1]s.%[2]s as \"%[2]s\"", q.Table, column))
+	}
+	builder.WriteString(strings.Join(columnSelects, ","))
+	builder.WriteString(fmt.Sprintf(" FROM %s", q.Table))
+	builder.WriteString(fmt.Sprintf(" JOIN (SELECT name, max(time) maxTime FROM %s GROUP BY name) b", q.Table))
+	builder.WriteString(fmt.Sprintf(" ON %[1]s.name = b.name AND %[1]s.time = b.maxTime", q.Table))
+	builder.WriteString(fmt.Sprintf(" WHERE %s.name IN (SELECT name FROM %s)", q.Table, q.NameTable))
+	return builder.String()
+}
+
+func (q *QueryBuilder) Collect(res Scanner, columns []string) (sensor.Fields, error) {
+	// XXX: the *sql.Row.Scan(any...) function is a bit painful to work with
+	// dynamic / configurable columns so this implementation is pretty gnarly. Beware!
+	d := sensor.AllZeroFields()
+	pointers := make([]any, len(columns))
+	for i, column := range columns {
+		switch column {
+		case q.Columns["time"]:
+			pointers[i] = &d.Timestamp
+		case q.Columns["mac"]:
+			pointers[i] = d.Addr
+		case q.Columns["name"]:
+			pointers[i] = d.Name
+		case q.Columns["temperature"]:
+			pointers[i] = d.Temperature
+		case q.Columns["humidity"]:
+			pointers[i] = d.Humidity
+		case q.Columns["pressure"]:
+			pointers[i] = d.Pressure
+		case q.Columns["battery_voltage"]:
+			pointers[i] = d.BatteryVoltage
+		case q.Columns["tx_power"]:
+			pointers[i] = d.TxPower
+		case q.Columns["acceleration_x"]:
+			pointers[i] = d.AccelerationX
+		case q.Columns["acceleration_y"]:
+			pointers[i] = d.AccelerationY
+		case q.Columns["acceleration_z"]:
+			pointers[i] = d.AccelerationZ
+		case q.Columns["movement_counter"]:
+			pointers[i] = d.MovementCounter
+		case q.Columns["measurement_number"]:
+			pointers[i] = d.MeasurementNumber
+		case q.Columns["dew_point"]:
+			pointers[i] = d.DewPoint
+		default:
+			return d, fmt.Errorf("unknown column: %s", column)
+		}
+	}
+	if err := res.Scan(pointers...); err != nil {
+		return d, err
+	}
+	return d, nil
 }

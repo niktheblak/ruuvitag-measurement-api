@@ -18,7 +18,7 @@ import (
 	"github.com/niktheblak/web-common/pkg/graceful"
 
 	"github.com/niktheblak/ruuvitag-measurement-api/internal/server"
-	"github.com/niktheblak/ruuvitag-measurement-api/pkg/measurement"
+	"github.com/niktheblak/ruuvitag-measurement-api/pkg/ruuvitag"
 )
 
 var DefaultColumns = sensor.DefaultColumnMap
@@ -61,7 +61,7 @@ var serverCmd = &cobra.Command{
 			slog.String("name_table", psqlNameTable),
 			slog.Any("columns", columns),
 		)
-		svc, err := measurement.New(measurement.Config{
+		svc, err := ruuvitag.New(ruuvitag.Config{
 			PsqlInfo:  psqlInfo,
 			Table:     psqlTable,
 			NameTable: psqlNameTable,

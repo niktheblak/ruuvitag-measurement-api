@@ -9,11 +9,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/niktheblak/ruuvitag-measurement-api/pkg/measurement"
-	"github.com/niktheblak/ruuvitag-measurement-api/pkg/psql"
+	"github.com/niktheblak/ruuvitag-common/pkg/sensor"
+
+	"github.com/niktheblak/ruuvitag-measurement-api/pkg/ruuvitag"
 )
 
-func currentHandler(service measurement.Service, columnMap map[string]string, logger *slog.Logger) http.Handler {
+func currentHandler(service ruuvitag.Service, columnMap map[string]string, logger *slog.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		loc, err := parseLocation(r.URL.Query().Get("tz"))
 		if err != nil {
@@ -31,7 +32,7 @@ func currentHandler(service measurement.Service, columnMap map[string]string, lo
 			logger.LogAttrs(r.Context(), slog.LevelError, "Timeout while querying measurements", slog.Any("error", err))
 			http.Error(w, "Timeout while querying measurements", http.StatusBadGateway)
 			return
-		case errors.Is(err, measurement.ErrInvalidColumn):
+		case errors.Is(err, ruuvitag.ErrInvalidColumn):
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		case err == nil:
@@ -69,7 +70,7 @@ func parseColumns(columns string) []string {
 	return strings.Split(columns, ",")
 }
 
-func renameColumns(d psql.Data, columns map[string]string) map[string]any {
+func renameColumns(d sensor.Fields, columns map[string]string) map[string]any {
 	m := make(map[string]any)
 	m[columns["time"]] = d.Timestamp
 	if c, ok := columns["mac"]; ok && d.Addr != nil {

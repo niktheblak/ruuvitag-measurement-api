@@ -15,19 +15,17 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/niktheblak/web-common/pkg/auth"
-
-	"github.com/niktheblak/ruuvitag-measurement-api/pkg/psql"
 )
 
 const testAccessToken = "a65cd12f9bba453"
 
 type mockService struct {
-	Response []psql.Data
+	Response []sensor.Fields
 }
 
-func (s *mockService) Current(ctx context.Context, loc *time.Location, columns []string) (measurements []psql.Data, err error) {
+func (s *mockService) Current(ctx context.Context, loc *time.Location, columns []string) (measurements []sensor.Fields, err error) {
 	if s.Response != nil {
-		var response []psql.Data
+		var response []sensor.Fields
 		for _, v := range s.Response {
 			v.Timestamp = v.Timestamp.In(loc)
 			response = append(response, v)
@@ -47,16 +45,16 @@ func (s *mockService) Close() error {
 
 func TestServe(t *testing.T) {
 	svc := new(mockService)
-	svc.Response = []psql.Data{
+	svc.Response = []sensor.Fields{
 		{
 			Timestamp:         time.Date(2020, time.December, 10, 12, 10, 39, 0, time.UTC),
-			Temperature:       psql.Float64Pointer(23.5),
-			Humidity:          psql.Float64Pointer(60.0),
-			Pressure:          psql.Float64Pointer(998.0),
-			BatteryVoltage:    psql.Float64Pointer(1.75),
-			TxPower:           psql.IntPointer(11),
-			MovementCounter:   psql.IntPointer(102),
-			MeasurementNumber: psql.IntPointer(71),
+			Temperature:       sensor.Float64Pointer(23.5),
+			Humidity:          sensor.Float64Pointer(60.0),
+			Pressure:          sensor.Float64Pointer(998.0),
+			BatteryVoltage:    sensor.Float64Pointer(1.75),
+			TxPower:           sensor.IntPointer(11),
+			MovementCounter:   sensor.IntPointer(102),
+			MeasurementNumber: sensor.IntPointer(71),
 		},
 	}
 	srv := New(svc, sensor.DefaultColumnMap, auth.Static(testAccessToken), nil)
