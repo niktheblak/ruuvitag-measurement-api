@@ -21,13 +21,14 @@ const testAccessToken = "a65cd12f9bba453"
 
 type mockService struct {
 	Response []sensor.Fields
+	Location *time.Location
 }
 
-func (s *mockService) Current(ctx context.Context, loc *time.Location, columns []string) (measurements []sensor.Fields, err error) {
+func (s *mockService) Current(ctx context.Context, columns []string) (measurements []sensor.Fields, err error) {
 	if s.Response != nil {
 		var response []sensor.Fields
 		for _, v := range s.Response {
-			v.Timestamp = v.Timestamp.In(loc)
+			v.Timestamp = v.Timestamp.In(s.Location)
 			response = append(response, v)
 		}
 		return response, nil
@@ -44,18 +45,20 @@ func (s *mockService) Close() error {
 }
 
 func TestServe(t *testing.T) {
-	svc := new(mockService)
-	svc.Response = []sensor.Fields{
-		{
-			Timestamp:         time.Date(2020, time.December, 10, 12, 10, 39, 0, time.UTC),
-			Temperature:       sensor.Float64Pointer(23.5),
-			Humidity:          sensor.Float64Pointer(60.0),
-			Pressure:          sensor.Float64Pointer(998.0),
-			BatteryVoltage:    sensor.Float64Pointer(1.75),
-			TxPower:           sensor.IntPointer(11),
-			MovementCounter:   sensor.IntPointer(102),
-			MeasurementNumber: sensor.IntPointer(71),
+	svc := &mockService{
+		Response: []sensor.Fields{
+			{
+				Timestamp:         time.Date(2020, time.December, 10, 12, 10, 39, 0, time.UTC),
+				Temperature:       sensor.Float64Pointer(23.5),
+				Humidity:          sensor.Float64Pointer(60.0),
+				Pressure:          sensor.Float64Pointer(998.0),
+				BatteryVoltage:    sensor.Float64Pointer(1.75),
+				TxPower:           sensor.IntPointer(11),
+				MovementCounter:   sensor.IntPointer(102),
+				MeasurementNumber: sensor.IntPointer(71),
+			},
 		},
+		Location: time.UTC,
 	}
 	srv := New(svc, sensor.DefaultColumnMap, auth.Static(testAccessToken), nil)
 	t.Run("with token", func(t *testing.T) {

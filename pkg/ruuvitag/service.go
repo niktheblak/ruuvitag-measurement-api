@@ -8,7 +8,6 @@ import (
 	"io"
 	"log/slog"
 	"strings"
-	"time"
 
 	_ "github.com/lib/pq"
 	"github.com/niktheblak/ruuvitag-common/pkg/sensor"
@@ -27,7 +26,7 @@ type Config struct {
 }
 
 type Service interface {
-	Current(ctx context.Context, loc *time.Location, columns []string) (measurements []sensor.Fields, err error)
+	Current(ctx context.Context, columns []string) (measurements []sensor.Fields, err error)
 	Ping(ctx context.Context) error
 	io.Closer
 }
@@ -69,7 +68,7 @@ func New(cfg Config) (Service, error) {
 }
 
 // Current returns current measurements
-func (s *service) Current(ctx context.Context, loc *time.Location, columns []string) ([]sensor.Fields, error) {
+func (s *service) Current(ctx context.Context, columns []string) ([]sensor.Fields, error) {
 	if len(columns) == 0 {
 		// no columns explicitly requested; return all configured columns
 		for _, c := range s.columnMap {
@@ -92,7 +91,6 @@ func (s *service) Current(ctx context.Context, loc *time.Location, columns []str
 		if err != nil {
 			return nil, err
 		}
-		d.Timestamp = d.Timestamp.In(loc)
 		measurements = append(measurements, d)
 		s.logger.LogAttrs(ctx, slog.LevelDebug, "Found measurement", slog.Any("data", d))
 	}

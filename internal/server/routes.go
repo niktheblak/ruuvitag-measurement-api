@@ -26,7 +26,7 @@ func currentHandler(service ruuvitag.Service, columnMap map[string]string, logge
 		logger.LogAttrs(r.Context(), slog.LevelDebug, "Columns from query", slog.Any("columns", columns))
 		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 		defer cancel()
-		measurements, err := service.Current(ctx, loc, columns)
+		measurements, err := service.Current(ctx, columns)
 		switch {
 		case errors.Is(err, context.DeadlineExceeded):
 			logger.LogAttrs(r.Context(), slog.LevelError, "Timeout while querying measurements", slog.Any("error", err))
@@ -43,11 +43,11 @@ func currentHandler(service ruuvitag.Service, columnMap map[string]string, logge
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Cache-Control", "no-store, max-age=0")
-		var renamed []map[string]any
+		var response []map[string]any
 		for _, m := range measurements {
-			renamed = append(renamed, renameColumns(m, columnMap))
+			response = append(response, createResponse(m, columnMap, loc))
 		}
-		if err := json.NewEncoder(w).Encode(renamed); err != nil {
+		if err := json.NewEncoder(w).Encode(response); err != nil {
 			logger.LogAttrs(r.Context(), slog.LevelError, "Error while writing output", slog.Any("error", err))
 			return
 		}
@@ -70,9 +70,9 @@ func parseColumns(columns string) []string {
 	return strings.Split(columns, ",")
 }
 
-func renameColumns(d sensor.Fields, columns map[string]string) map[string]any {
+func createResponse(d sensor.Fields, columns map[string]string, loc *time.Location) map[string]any {
 	m := make(map[string]any)
-	m[columns["time"]] = d.Timestamp
+	m[columns["time"]] = d.Timestamp.In(loc)
 	if c, ok := columns["mac"]; ok && d.Addr != nil {
 		m[c] = *d.Addr
 	}
