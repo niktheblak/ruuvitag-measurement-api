@@ -2,13 +2,12 @@ package ruuvitag
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 
-	_ "github.com/lib/pq"
+	"github.com/jackc/pgx/v5"
 	"github.com/niktheblak/ruuvitag-common/pkg/sensor"
 )
 
@@ -33,7 +32,7 @@ type Service interface {
 }
 
 type service struct {
-	db        *sql.DB
+	conn      *pgx.Conn
 	table     string
 	nameTable string
 	columnMap map[string]string
@@ -42,20 +41,20 @@ type service struct {
 }
 
 // New creates a new instance of the service using the given config
-func New(cfg Config) (Service, error) {
+func New(ctx context.Context, cfg Config) (Service, error) {
 	if cfg.Logger == nil {
 		cfg.Logger = slog.New(slog.NewTextHandler(io.Discard, nil))
 	}
 	if err := validateConfigColumns(cfg.Columns); err != nil {
 		return nil, err
 	}
-	cfg.Logger.LogAttrs(nil, slog.LevelDebug, "Columns", slog.Any("column_map", cfg.Columns))
-	db, err := sql.Open("postgres", cfg.PsqlInfo)
+	cfg.Logger.LogAttrs(ctx, slog.LevelDebug, "Columns", slog.Any("column_map", cfg.Columns))
+	conn, err := pgx.Connect(ctx, cfg.PsqlInfo)
 	if err != nil {
 		return nil, err
 	}
 	return &service{
-		db:        db,
+		conn:      conn,
 		table:     cfg.Table,
 		nameTable: cfg.NameTable,
 		columnMap: cfg.Columns,
@@ -92,7 +91,7 @@ func (s *service) Latest(ctx context.Context, n int, columns []string) (measurem
 		return
 	}
 	s.logger.LogAttrs(ctx, slog.LevelDebug, "RuuviTag names query", slog.String("query", CleanForLogging(q)))
-	rows, err := s.db.QueryContext(ctx, q)
+	rows, err := s.conn.Query(ctx, q)
 	if err != nil {
 		return
 	}
@@ -100,13 +99,12 @@ func (s *service) Latest(ctx context.Context, n int, columns []string) (measurem
 	for rows.Next() {
 		var name string
 		if err = rows.Scan(&name); err != nil {
+			rows.Close()
 			return
 		}
 		names = append(names, name)
 	}
-	if err = rows.Close(); err != nil {
-		return
-	}
+	rows.Close()
 	s.logger.LogAttrs(ctx, slog.LevelDebug, "Returned RuuviTag names", slog.Any("names", names))
 	measurements = make(map[string][]sensor.Fields)
 	for _, name := range names {
@@ -130,13 +128,11 @@ func (s *service) queryMeasurements(ctx context.Context, columns []string, name 
 		return
 	}
 	s.logger.LogAttrs(ctx, slog.LevelDebug, "RuuviTag values query", slog.String("name", name), slog.String("query", CleanForLogging(q)))
-	rows, err := s.db.QueryContext(ctx, q, name)
+	rows, err := s.conn.Query(ctx, q, name)
 	if err != nil {
 		return
 	}
-	defer func() {
-		err = errors.Join(err, rows.Close())
-	}()
+	defer rows.Close()
 	for rows.Next() {
 		var f sensor.Fields
 		f, err = s.qb.Collect(rows, columns)
@@ -151,11 +147,11 @@ func (s *service) queryMeasurements(ctx context.Context, columns []string, name 
 }
 
 func (s *service) Ping(ctx context.Context) error {
-	return s.db.PingContext(ctx)
+	return s.conn.Ping(ctx)
 }
 
 func (s *service) Close() error {
-	return s.db.Close()
+	return s.conn.Close(context.Background())
 }
 
 func validateConfigColumns(columns map[string]string) error {

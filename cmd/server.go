@@ -61,7 +61,8 @@ var serverCmd = &cobra.Command{
 			slog.String("name_table", psqlNameTable),
 			slog.Any("columns", columns),
 		)
-		svc, err := ruuvitag.New(ruuvitag.Config{
+		ctx := context.Background()
+		svc, err := ruuvitag.New(ctx, ruuvitag.Config{
 			PsqlInfo:  psqlInfo,
 			Table:     psqlTable,
 			NameTable: psqlNameTable,
@@ -87,7 +88,7 @@ var serverCmd = &cobra.Command{
 			ShutdownTimeout: 5 * time.Second,
 			Signals:         []os.Signal{os.Interrupt},
 		}
-		return errors.Join(httpServer.Serve(context.Background()), svc.Close())
+		return errors.Join(httpServer.Serve(ctx), svc.Close())
 	},
 }
 
