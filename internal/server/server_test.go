@@ -24,12 +24,12 @@ type mockService struct {
 	Location *time.Location
 }
 
-func (s *mockService) Current(ctx context.Context, columns []string) (measurements map[string]sensor.Fields, err error) {
+func (s *mockService) Latest(ctx context.Context, n int, columns []string) (measurements map[string][]sensor.Fields, err error) {
 	if s.Response != nil {
-		response := make(map[string]sensor.Fields)
+		response := make(map[string][]sensor.Fields)
 		for _, v := range s.Response {
 			v.Timestamp = v.Timestamp.In(s.Location)
-			response[*v.Name] = v
+			response[*v.Name] = []sensor.Fields{v}
 		}
 		return response, nil
 	}

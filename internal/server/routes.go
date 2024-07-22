@@ -4,8 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -14,7 +17,7 @@ import (
 	"github.com/niktheblak/ruuvitag-measurement-api/pkg/ruuvitag"
 )
 
-func currentHandler(service ruuvitag.Service, columnMap map[string]string, logger *slog.Logger) http.Handler {
+func latestHandler(service ruuvitag.Service, columnMap map[string]string, logger *slog.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		loc, err := parseLocation(r.URL.Query().Get("tz"))
 		if err != nil {
@@ -22,11 +25,20 @@ func currentHandler(service ruuvitag.Service, columnMap map[string]string, logge
 			http.Error(w, "Invalid timezone", http.StatusBadRequest)
 			return
 		}
-		columns := parseColumns(r.URL.Query().Get("columns"))
+		n, err := parseN(r.URL.Query().Get("n"), 1)
+		if err != nil {
+			http.Error(w, "Invalid n", http.StatusBadRequest)
+			return
+		}
+		columns, err := parseColumns(r.URL.Query().Get("columns"))
+		if err != nil {
+			http.Error(w, "Invalid columns", http.StatusBadRequest)
+			return
+		}
 		logger.LogAttrs(r.Context(), slog.LevelDebug, "Columns from query", slog.Any("columns", columns))
 		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 		defer cancel()
-		measurements, err := service.Current(ctx, columns)
+		measurements, err := service.Latest(ctx, n, columns)
 		switch {
 		case errors.Is(err, context.DeadlineExceeded):
 			logger.LogAttrs(r.Context(), slog.LevelError, "Timeout while querying measurements", slog.Any("error", err))
@@ -43,15 +55,38 @@ func currentHandler(service ruuvitag.Service, columnMap map[string]string, logge
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Cache-Control", "no-store, max-age=0")
-		response := make(map[string]map[string]any)
-		for k, m := range measurements {
-			response[k] = createResponse(m, columnMap, loc)
-		}
-		if err := json.NewEncoder(w).Encode(response); err != nil {
-			logger.LogAttrs(r.Context(), slog.LevelError, "Error while writing output", slog.Any("error", err))
-			return
+		if n == 1 {
+			response := make(map[string]map[string]any)
+			for k, m := range measurements {
+				if len(m) == 0 {
+					continue
+				}
+				response[k] = createResponse(m[0], columnMap, loc)
+			}
+			if err := json.NewEncoder(w).Encode(response); err != nil {
+				logger.LogAttrs(r.Context(), slog.LevelError, "Error while writing output", slog.Any("error", err))
+				return
+			}
+		} else {
+			response := make(map[string][]map[string]any)
+			for k, ms := range measurements {
+				for _, m := range ms {
+					response[k] = append(response[k], createResponse(m, columnMap, loc))
+				}
+			}
+			if err := json.NewEncoder(w).Encode(response); err != nil {
+				logger.LogAttrs(r.Context(), slog.LevelError, "Error while writing output", slog.Any("error", err))
+				return
+			}
 		}
 	})
+}
+
+func parseN(n string, defaultValue int) (int, error) {
+	if n == "" {
+		return defaultValue, nil
+	}
+	return strconv.Atoi(n)
 }
 
 func parseLocation(tz string) (loc *time.Location, err error) {
@@ -63,11 +98,15 @@ func parseLocation(tz string) (loc *time.Location, err error) {
 	return
 }
 
-func parseColumns(columns string) []string {
+func parseColumns(columns string) ([]string, error) {
 	if columns == "" {
-		return nil
+		return nil, nil
 	}
-	return strings.Split(columns, ",")
+	r := regexp.MustCompile(`^[\w,]*\w$`)
+	if !r.MatchString(columns) {
+		return nil, fmt.Errorf("invalid columns: %s", columns)
+	}
+	return strings.Split(columns, ","), nil
 }
 
 func createResponse(d sensor.Fields, columns map[string]string, loc *time.Location) map[string]any {

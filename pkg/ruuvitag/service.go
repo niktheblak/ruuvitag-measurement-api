@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"strings"
 
 	_ "github.com/lib/pq"
 	"github.com/niktheblak/ruuvitag-common/pkg/sensor"
@@ -26,7 +25,9 @@ type Config struct {
 }
 
 type Service interface {
-	Current(ctx context.Context, columns []string) (measurements map[string]sensor.Fields, err error)
+	// Latest returns n latest measurements from all RuuviTags.
+	Latest(ctx context.Context, n int, columns []string) (measurements map[string][]sensor.Fields, err error)
+	// Ping verifies the database connection is still alive.
 	Ping(ctx context.Context) error
 	io.Closer
 }
@@ -67,8 +68,7 @@ func New(cfg Config) (Service, error) {
 	}, nil
 }
 
-// Current returns current measurements
-func (s *service) Current(ctx context.Context, columns []string) (map[string]sensor.Fields, error) {
+func (s *service) validColumns(columns []string) ([]string, error) {
 	if len(columns) == 0 {
 		// no columns explicitly requested; return all configured columns
 		for _, c := range s.columnMap {
@@ -78,31 +78,76 @@ func (s *service) Current(ctx context.Context, columns []string) (map[string]sen
 	if err := s.validateColumns(columns); err != nil {
 		return nil, err
 	}
-	s.logger.LogAttrs(nil, slog.LevelDebug, "Response columns", slog.Any("columns", columns))
-	q := s.qb.Build(columns)
-	s.logger.LogAttrs(ctx, slog.LevelDebug, "Rendered query", slog.String("query", q))
-	res, err := s.db.QueryContext(ctx, q)
+	return columns, nil
+}
+
+func (s *service) Latest(ctx context.Context, n int, columns []string) (measurements map[string][]sensor.Fields, err error) {
+	columns, err = s.validColumns(columns)
 	if err != nil {
-		return nil, err
+		return
 	}
-	measurements := make(map[string]sensor.Fields)
-	for res.Next() {
-		fields, err := s.qb.Collect(res, columns)
-		if err != nil {
-			return nil, err
-		}
+	s.logger.LogAttrs(ctx, slog.LevelDebug, "Response columns", slog.Any("columns", columns))
+	q, err := s.qb.Names()
+	if err != nil {
+		return
+	}
+	s.logger.LogAttrs(ctx, slog.LevelDebug, "RuuviTag names query", slog.String("query", CleanForLogging(q)))
+	rows, err := s.db.QueryContext(ctx, q)
+	if err != nil {
+		return
+	}
+	var names []string
+	for rows.Next() {
 		var name string
-		if fields.Name != nil && *fields.Name != "" {
-			name = *fields.Name
-			fields.Name = nil
-		} else if fields.Addr != nil && *fields.Addr != "" {
-			name = *fields.Addr
-			fields.Addr = nil
+		if err = rows.Scan(&name); err != nil {
+			return
 		}
-		measurements[name] = fields
-		s.logger.LogAttrs(ctx, slog.LevelDebug, "Found measurement", slog.Any("data", fields))
+		names = append(names, name)
 	}
-	return measurements, res.Err()
+	if err = rows.Close(); err != nil {
+		return
+	}
+	s.logger.LogAttrs(ctx, slog.LevelDebug, "Returned RuuviTag names", slog.Any("names", names))
+	measurements = make(map[string][]sensor.Fields)
+	for _, name := range names {
+		var ms []sensor.Fields
+		ms, err = s.queryMeasurements(ctx, columns, name, n)
+		if err != nil {
+			return
+		}
+		for _, m := range ms {
+			k := popName(&m)
+			measurements[k] = append(measurements[k], m)
+		}
+	}
+	err = rows.Err()
+	return
+}
+
+func (s *service) queryMeasurements(ctx context.Context, columns []string, name string, n int) (measurements []sensor.Fields, err error) {
+	q, err := s.qb.Latest(columns, n)
+	if err != nil {
+		return
+	}
+	s.logger.LogAttrs(ctx, slog.LevelDebug, "RuuviTag values query", slog.String("name", name), slog.String("query", CleanForLogging(q)))
+	rows, err := s.db.QueryContext(ctx, q, name)
+	if err != nil {
+		return
+	}
+	defer func() {
+		err = errors.Join(err, rows.Close())
+	}()
+	for rows.Next() {
+		var f sensor.Fields
+		f, err = s.qb.Collect(rows, columns)
+		if err != nil {
+			return
+		}
+		s.logger.LogAttrs(ctx, slog.LevelDebug, "Returned RuuviTag measurement", slog.Any("measurement", sensor.FromFields(f)))
+		measurements = append(measurements, f)
+	}
+	err = rows.Err()
+	return
 }
 
 func (s *service) Ping(ctx context.Context) error {
@@ -175,85 +220,15 @@ func (s *service) validateColumns(requestedColumns []string) error {
 	return nil
 }
 
-type Scanner interface {
-	Scan(dest ...any) error
-}
-
-type QueryBuilder struct {
-	Table     string
-	NameTable string
-	Columns   map[string]string
-}
-
-func (q *QueryBuilder) Build(columns []string) string {
-	builder := new(strings.Builder)
-	builder.WriteString("SELECT")
-	var columnSelects []string
-	for _, column := range columns {
-		columnSelects = append(columnSelects, fmt.Sprintf(" %[1]s.%[2]s as \"%[2]s\"", q.Table, column))
+func popName(f *sensor.Fields) string {
+	var name string
+	if f.Name != nil && *f.Name != "" {
+		name = *f.Name
+		f.Name = nil
 	}
-	builder.WriteString(strings.Join(columnSelects, ","))
-	builder.WriteString(fmt.Sprintf(" FROM %s", q.Table))
-	builder.WriteString(fmt.Sprintf(" JOIN (SELECT name, max(time) maxTime FROM %s GROUP BY name) b", q.Table))
-	builder.WriteString(fmt.Sprintf(" ON %[1]s.name = b.name AND %[1]s.time = b.maxTime", q.Table))
-	builder.WriteString(fmt.Sprintf(" WHERE %s.name IN (SELECT name FROM %s)", q.Table, q.NameTable))
-	return builder.String()
-}
-
-func (q *QueryBuilder) Collect(res Scanner, columns []string) (sensor.Fields, error) {
-	// XXX: the *sql.Row.Scan(any...) function is a bit painful to work with
-	// dynamic / configurable columns so this implementation is pretty gnarly. Beware!
-	var d sensor.Fields
-	pointers := make([]any, len(columns))
-	for i, column := range columns {
-		switch column {
-		case q.Columns["time"]:
-			pointers[i] = &d.Timestamp
-		case q.Columns["mac"]:
-			d.Addr = sensor.ZeroStringPointer()
-			pointers[i] = d.Addr
-		case q.Columns["name"]:
-			d.Name = sensor.ZeroStringPointer()
-			pointers[i] = d.Name
-		case q.Columns["temperature"]:
-			d.Temperature = sensor.ZeroFloat64Pointer()
-			pointers[i] = d.Temperature
-		case q.Columns["humidity"]:
-			d.Humidity = sensor.ZeroFloat64Pointer()
-			pointers[i] = d.Humidity
-		case q.Columns["pressure"]:
-			d.Pressure = sensor.ZeroFloat64Pointer()
-			pointers[i] = d.Pressure
-		case q.Columns["battery_voltage"]:
-			d.BatteryVoltage = sensor.ZeroFloat64Pointer()
-			pointers[i] = d.BatteryVoltage
-		case q.Columns["tx_power"]:
-			d.TxPower = sensor.ZeroIntPointer()
-			pointers[i] = d.TxPower
-		case q.Columns["acceleration_x"]:
-			d.AccelerationX = sensor.ZeroIntPointer()
-			pointers[i] = d.AccelerationX
-		case q.Columns["acceleration_y"]:
-			d.AccelerationY = sensor.ZeroIntPointer()
-			pointers[i] = d.AccelerationY
-		case q.Columns["acceleration_z"]:
-			d.AccelerationZ = sensor.ZeroIntPointer()
-			pointers[i] = d.AccelerationZ
-		case q.Columns["movement_counter"]:
-			d.MovementCounter = sensor.ZeroIntPointer()
-			pointers[i] = d.MovementCounter
-		case q.Columns["measurement_number"]:
-			d.MeasurementNumber = sensor.ZeroIntPointer()
-			pointers[i] = d.MeasurementNumber
-		case q.Columns["dew_point"]:
-			d.DewPoint = sensor.ZeroFloat64Pointer()
-			pointers[i] = d.DewPoint
-		default:
-			return d, fmt.Errorf("unknown column: %s", column)
-		}
+	if f.Addr != nil && *f.Addr != "" {
+		name = *f.Addr
+		f.Addr = nil
 	}
-	if err := res.Scan(pointers...); err != nil {
-		return d, err
-	}
-	return d, nil
+	return name
 }

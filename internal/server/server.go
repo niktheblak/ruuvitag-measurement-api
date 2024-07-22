@@ -24,6 +24,6 @@ func New(service ruuvitag.Service, columns map[string]string, authenticator auth
 		defer cancel()
 		return service.Ping(ctx)
 	}, logger))
-	mux.Handle("/", middleware.Authenticator(currentHandler(service, columns, logger), authenticator))
+	mux.Handle("/", middleware.Authenticator(latestHandler(service, columns, logger), authenticator))
 	return mux
 }
