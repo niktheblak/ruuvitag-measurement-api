@@ -43,9 +43,9 @@ func currentHandler(service ruuvitag.Service, columnMap map[string]string, logge
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Cache-Control", "no-store, max-age=0")
-		var response []map[string]any
-		for _, m := range measurements {
-			response = append(response, createResponse(m, columnMap, loc))
+		response := make(map[string]map[string]any)
+		for k, m := range measurements {
+			response[k] = createResponse(m, columnMap, loc)
 		}
 		if err := json.NewEncoder(w).Encode(response); err != nil {
 			logger.LogAttrs(r.Context(), slog.LevelError, "Error while writing output", slog.Any("error", err))

@@ -24,12 +24,12 @@ type mockService struct {
 	Location *time.Location
 }
 
-func (s *mockService) Current(ctx context.Context, columns []string) (measurements []sensor.Fields, err error) {
+func (s *mockService) Current(ctx context.Context, columns []string) (measurements map[string]sensor.Fields, err error) {
 	if s.Response != nil {
-		var response []sensor.Fields
+		response := make(map[string]sensor.Fields)
 		for _, v := range s.Response {
 			v.Timestamp = v.Timestamp.In(s.Location)
-			response = append(response, v)
+			response[*v.Name] = v
 		}
 		return response, nil
 	}
@@ -49,6 +49,7 @@ func TestServe(t *testing.T) {
 		Response: []sensor.Fields{
 			{
 				Timestamp:         time.Date(2020, time.December, 10, 12, 10, 39, 0, time.UTC),
+				Name:              sensor.StringPointer("Living Room"),
 				Temperature:       sensor.Float64Pointer(23.5),
 				Humidity:          sensor.Float64Pointer(60.0),
 				Pressure:          sensor.Float64Pointer(998.0),
@@ -68,8 +69,8 @@ func TestServe(t *testing.T) {
 		srv.ServeHTTP(w, req)
 		require.Equal(t, http.StatusOK, w.Code)
 		m := decode(t, w.Body)
-		require.Len(t, m, 1)
-		lr := m[0]
+		require.Contains(t, m, "Living Room")
+		lr := m["Living Room"]
 		assert.Equal(t, "2020-12-10T12:10:39Z", lr["time"])
 		assert.Equal(t, 23.5, lr["temperature"])
 		assert.Equal(t, 60.0, lr["humidity"])
@@ -90,15 +91,15 @@ func TestServe(t *testing.T) {
 		srv.ServeHTTP(w, req)
 		require.Equal(t, http.StatusOK, w.Code)
 		res := decode(t, w.Body)
-		require.Len(t, res, 1)
-		lr := res[0]
+		require.Contains(t, res, "Living Room")
+		lr := res["Living Room"]
 		assert.Equal(t, "2020-12-10T14:10:39+02:00", lr["time"])
 	})
 }
 
-func decode(t *testing.T, r io.Reader) []map[string]any {
+func decode(t *testing.T, r io.Reader) map[string]map[string]any {
 	dec := json.NewDecoder(r)
-	var results []map[string]any
+	results := make(map[string]map[string]any)
 	if err := dec.Decode(&results); err != nil {
 		t.Fatal(err)
 	}

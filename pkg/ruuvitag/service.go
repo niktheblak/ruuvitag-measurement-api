@@ -26,7 +26,7 @@ type Config struct {
 }
 
 type Service interface {
-	Current(ctx context.Context, columns []string) (measurements []sensor.Fields, err error)
+	Current(ctx context.Context, columns []string) (measurements map[string]sensor.Fields, err error)
 	Ping(ctx context.Context) error
 	io.Closer
 }
@@ -68,7 +68,7 @@ func New(cfg Config) (Service, error) {
 }
 
 // Current returns current measurements
-func (s *service) Current(ctx context.Context, columns []string) ([]sensor.Fields, error) {
+func (s *service) Current(ctx context.Context, columns []string) (map[string]sensor.Fields, error) {
 	if len(columns) == 0 {
 		// no columns explicitly requested; return all configured columns
 		for _, c := range s.columnMap {
@@ -85,14 +85,22 @@ func (s *service) Current(ctx context.Context, columns []string) ([]sensor.Field
 	if err != nil {
 		return nil, err
 	}
-	var measurements []sensor.Fields
+	measurements := make(map[string]sensor.Fields)
 	for res.Next() {
-		d, err := s.qb.Collect(res, columns)
+		fields, err := s.qb.Collect(res, columns)
 		if err != nil {
 			return nil, err
 		}
-		measurements = append(measurements, d)
-		s.logger.LogAttrs(ctx, slog.LevelDebug, "Found measurement", slog.Any("data", d))
+		var name string
+		if fields.Name != nil && *fields.Name != "" {
+			name = *fields.Name
+			fields.Name = nil
+		} else if fields.Addr != nil && *fields.Addr != "" {
+			name = *fields.Addr
+			fields.Addr = nil
+		}
+		measurements[name] = fields
+		s.logger.LogAttrs(ctx, slog.LevelDebug, "Found measurement", slog.Any("data", fields))
 	}
 	return measurements, res.Err()
 }
