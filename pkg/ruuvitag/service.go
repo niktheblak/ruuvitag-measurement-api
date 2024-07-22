@@ -197,37 +197,50 @@ func (q *QueryBuilder) Build(columns []string) string {
 func (q *QueryBuilder) Collect(res Scanner, columns []string) (sensor.Fields, error) {
 	// XXX: the *sql.Row.Scan(any...) function is a bit painful to work with
 	// dynamic / configurable columns so this implementation is pretty gnarly. Beware!
-	d := sensor.AllZeroFields()
+	var d sensor.Fields
 	pointers := make([]any, len(columns))
 	for i, column := range columns {
 		switch column {
 		case q.Columns["time"]:
 			pointers[i] = &d.Timestamp
 		case q.Columns["mac"]:
+			d.Addr = sensor.ZeroStringPointer()
 			pointers[i] = d.Addr
 		case q.Columns["name"]:
+			d.Name = sensor.ZeroStringPointer()
 			pointers[i] = d.Name
 		case q.Columns["temperature"]:
+			d.Temperature = sensor.ZeroFloat64Pointer()
 			pointers[i] = d.Temperature
 		case q.Columns["humidity"]:
+			d.Humidity = sensor.ZeroFloat64Pointer()
 			pointers[i] = d.Humidity
 		case q.Columns["pressure"]:
+			d.Pressure = sensor.ZeroFloat64Pointer()
 			pointers[i] = d.Pressure
 		case q.Columns["battery_voltage"]:
+			d.BatteryVoltage = sensor.ZeroFloat64Pointer()
 			pointers[i] = d.BatteryVoltage
 		case q.Columns["tx_power"]:
+			d.TxPower = sensor.ZeroIntPointer()
 			pointers[i] = d.TxPower
 		case q.Columns["acceleration_x"]:
+			d.AccelerationX = sensor.ZeroIntPointer()
 			pointers[i] = d.AccelerationX
 		case q.Columns["acceleration_y"]:
+			d.AccelerationY = sensor.ZeroIntPointer()
 			pointers[i] = d.AccelerationY
 		case q.Columns["acceleration_z"]:
+			d.AccelerationZ = sensor.ZeroIntPointer()
 			pointers[i] = d.AccelerationZ
 		case q.Columns["movement_counter"]:
+			d.MovementCounter = sensor.ZeroIntPointer()
 			pointers[i] = d.MovementCounter
 		case q.Columns["measurement_number"]:
+			d.MeasurementNumber = sensor.ZeroIntPointer()
 			pointers[i] = d.MeasurementNumber
 		case q.Columns["dew_point"]:
+			d.DewPoint = sensor.ZeroFloat64Pointer()
 			pointers[i] = d.DewPoint
 		default:
 			return d, fmt.Errorf("unknown column: %s", column)
