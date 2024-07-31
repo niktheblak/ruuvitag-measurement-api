@@ -222,6 +222,9 @@ func popName(f *sensor.Fields) string {
 		name = *f.Name
 		f.Name = nil
 	}
+	if name != "" {
+		return name
+	}
 	if f.Addr != nil && *f.Addr != "" {
 		name = *f.Addr
 		f.Addr = nil
