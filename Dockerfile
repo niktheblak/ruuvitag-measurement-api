@@ -16,4 +16,4 @@ RUN apt-get update \
 
 COPY --from=build /go/bin/app /
 
-ENTRYPOINT ["/app", "server"]
+ENTRYPOINT ["/app"]
