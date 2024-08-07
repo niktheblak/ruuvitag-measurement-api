@@ -8,6 +8,7 @@ import (
 	"log/slog"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/niktheblak/ruuvitag-common/pkg/psql"
 	"github.com/niktheblak/ruuvitag-common/pkg/sensor"
 )
 
@@ -36,7 +37,7 @@ type service struct {
 	table     string
 	nameTable string
 	columnMap map[string]string
-	qb        *QueryBuilder
+	qb        *psql.QueryBuilder
 	logger    *slog.Logger
 }
 
@@ -58,7 +59,7 @@ func New(ctx context.Context, cfg Config) (Service, error) {
 		table:     cfg.Table,
 		nameTable: cfg.NameTable,
 		columnMap: cfg.Columns,
-		qb: &QueryBuilder{
+		qb: &psql.QueryBuilder{
 			Table:     cfg.Table,
 			NameTable: cfg.NameTable,
 			Columns:   cfg.Columns,
@@ -90,7 +91,7 @@ func (s *service) Latest(ctx context.Context, n int, columns []string) (measurem
 	if err != nil {
 		return
 	}
-	s.logger.LogAttrs(ctx, slog.LevelDebug, "RuuviTag names query", slog.String("query", CleanForLogging(q)))
+	s.logger.LogAttrs(ctx, slog.LevelDebug, "RuuviTag names query", slog.String("query", q))
 	rows, err := s.conn.Query(ctx, q)
 	if err != nil {
 		return
@@ -127,7 +128,7 @@ func (s *service) queryMeasurements(ctx context.Context, columns []string, name 
 	if err != nil {
 		return
 	}
-	s.logger.LogAttrs(ctx, slog.LevelDebug, "RuuviTag values query", slog.String("name", name), slog.String("query", CleanForLogging(q)))
+	s.logger.LogAttrs(ctx, slog.LevelDebug, "RuuviTag values query", slog.String("name", name), slog.String("query", q))
 	rows, err := s.conn.Query(ctx, q, name)
 	if err != nil {
 		return
