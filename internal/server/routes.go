@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/niktheblak/ruuvitag-common/pkg/columnmap"
 	"github.com/niktheblak/ruuvitag-common/pkg/sensor"
 
 	"github.com/niktheblak/ruuvitag-measurement-api/pkg/ruuvitag"
@@ -44,7 +45,7 @@ func latestHandler(service ruuvitag.Service, columnMap map[string]string, logger
 			logger.LogAttrs(r.Context(), slog.LevelError, "Timeout while querying measurements", slog.Any("error", err))
 			http.Error(w, "Timeout while querying measurements", http.StatusBadGateway)
 			return
-		case errors.Is(err, ruuvitag.ErrInvalidColumn):
+		case errors.Is(err, sensor.ErrInvalidColumn) || errors.Is(err, sensor.ErrMissingColumn):
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		case err == nil:
@@ -61,7 +62,9 @@ func latestHandler(service ruuvitag.Service, columnMap map[string]string, logger
 				if len(m) == 0 {
 					continue
 				}
-				response[k] = createResponse(m[0], columnMap, loc)
+				fields := m[0]
+				fields.Timestamp = fields.Timestamp.In(loc)
+				response[k] = columnmap.TransformFields(columnMap, fields)
 			}
 			if err := json.NewEncoder(w).Encode(response); err != nil {
 				logger.LogAttrs(r.Context(), slog.LevelError, "Error while writing output", slog.Any("error", err))
@@ -71,7 +74,8 @@ func latestHandler(service ruuvitag.Service, columnMap map[string]string, logger
 			response := make(map[string][]map[string]any)
 			for k, ms := range measurements {
 				for _, m := range ms {
-					response[k] = append(response[k], createResponse(m, columnMap, loc))
+					m.Timestamp = m.Timestamp.In(loc)
+					response[k] = append(response[k], columnmap.TransformFields(columnMap, m))
 				}
 			}
 			if err := json.NewEncoder(w).Encode(response); err != nil {
@@ -107,46 +111,4 @@ func parseColumns(columns string) ([]string, error) {
 		return nil, fmt.Errorf("invalid columns: %s", columns)
 	}
 	return strings.Split(columns, ","), nil
-}
-
-func createResponse(d sensor.Fields, columns map[string]string, loc *time.Location) map[string]any {
-	m := make(map[string]any)
-	m[columns["time"]] = d.Timestamp.In(loc)
-	if c, ok := columns["mac"]; ok && d.Addr != nil {
-		m[c] = *d.Addr
-	}
-	if c, ok := columns["name"]; ok && d.Name != nil {
-		m[c] = *d.Name
-	}
-	if c, ok := columns["temperature"]; ok && d.Temperature != nil {
-		m[c] = *d.Temperature
-	}
-	if c, ok := columns["humidity"]; ok && d.Humidity != nil {
-		m[c] = *d.Humidity
-	}
-	if c, ok := columns["pressure"]; ok && d.Pressure != nil {
-		m[c] = *d.Pressure
-	}
-	if c, ok := columns["battery_voltage"]; ok && d.BatteryVoltage != nil {
-		m[c] = *d.BatteryVoltage
-	}
-	if c, ok := columns["tx_power"]; ok && d.TxPower != nil {
-		m[c] = *d.TxPower
-	}
-	if c, ok := columns["acceleration_x"]; ok && d.AccelerationX != nil {
-		m[c] = *d.AccelerationX
-	}
-	if c, ok := columns["acceleration_y"]; ok && d.AccelerationY != nil {
-		m[c] = *d.AccelerationY
-	}
-	if c, ok := columns["acceleration_z"]; ok && d.AccelerationZ != nil {
-		m[c] = *d.AccelerationZ
-	}
-	if c, ok := columns["movement_counter"]; ok && d.MovementCounter != nil {
-		m[c] = *d.MovementCounter
-	}
-	if c, ok := columns["measurement_number"]; ok && d.MeasurementNumber != nil {
-		m[c] = *d.MeasurementNumber
-	}
-	return m
 }
