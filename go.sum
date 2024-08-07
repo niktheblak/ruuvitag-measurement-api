@@ -31,6 +31,8 @@ github.com/mitchellh/mapstructure v1.5.0 h1:jeMsZIYE/09sWLaz43PL7Gy6RuMjD2eJVyua
 github.com/mitchellh/mapstructure v1.5.0/go.mod h1:bFUtVrKA4DC2yAKiSyO/QUcy7e+RRV2QTWOzhPopBRo=
 github.com/niktheblak/ruuvitag-common v1.2.0 h1:fod/BCkqrixAb9mdc3EFym+F3lmYoHFTyAVuUlet4Hk=
 github.com/niktheblak/ruuvitag-common v1.2.0/go.mod h1:LCo/TOOlVl/7u95ISdhxLDSIOWaS7RIo7Rz5U6RJ4oA=
+github.com/niktheblak/ruuvitag-common v1.3.1 h1:aXSBKN3xX9DEjaOS2Q0tm68pH1IsWlYjlQ+kp4SjkBA=
+github.com/niktheblak/ruuvitag-common v1.3.1/go.mod h1:ab6Oiap5Gn3GPcM9jEohfVR8jEm+VMBRIrC+OwPDkqI=
 github.com/niktheblak/web-common v1.1.1 h1:MP6Fo5w50dFvkvWd6P9O2T3s14Ew9ZdDn/ya6o0s/J4=
 github.com/niktheblak/web-common v1.1.1/go.mod h1:AkHx+OblQx5ux/tlGiUzp9ltWhQOMaSICqUB3lSLusI=
 github.com/pelletier/go-toml/v2 v2.2.2 h1:aYUidT7k73Pcl9nb2gScu7NSrKCSHIDE89b3+6Wq+LM=
@@ -76,6 +78,8 @@ golang.org/x/crypto v0.25.0 h1:ypSNr+bnYL2YhwoMt2zPxHFmbAN1KZs/njMG3hxUp30=
 golang.org/x/crypto v0.25.0/go.mod h1:T+wALwcMOSE0kXgUAnPAHqTLW+XHgcELELW8VaDgm/M=
 golang.org/x/exp v0.0.0-20240716175740-e3f259677ff7 h1:wDLEX9a7YQoKdKNQt88rtydkqDxeGaBUTnIYc3iG/mA=
 golang.org/x/exp v0.0.0-20240716175740-e3f259677ff7/go.mod h1:M4RDyNAINzryxdtnbRXRL/OHtkFuWGRjvuhBJpk2IlY=
+golang.org/x/exp v0.0.0-20240719175910-8a7402abbf56 h1:2dVuKD2vS7b0QIHQbpyTISPd0LeHDbnYEryqj5Q1ug8=
+golang.org/x/exp v0.0.0-20240719175910-8a7402abbf56/go.mod h1:M4RDyNAINzryxdtnbRXRL/OHtkFuWGRjvuhBJpk2IlY=
 golang.org/x/sync v0.7.0 h1:YsImfSBoP9QPYL0xyKJPq0gcaJdG3rInoqxTWbfQu9M=
 golang.org/x/sync v0.7.0/go.mod h1:Czt+wKu1gCyEFDUtn0jG5QVvpJ6rzVqr5aXyt9drQfk=
 golang.org/x/sys v0.22.0 h1:RI27ohtqKCnwULzJLqkv897zojh5/DwS/ENaMzUOaWI=
