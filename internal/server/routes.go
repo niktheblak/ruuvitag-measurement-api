@@ -31,15 +31,20 @@ func latestHandler(service ruuvitag.Service, columnMap map[string]string, logger
 			http.Error(w, "Invalid n", http.StatusBadRequest)
 			return
 		}
-		columns, err := parseColumns(r.URL.Query().Get("columns"))
+		columns, err := parseCSV(r.URL.Query().Get("columns"))
 		if err != nil {
 			http.Error(w, "Invalid columns", http.StatusBadRequest)
 			return
 		}
-		logger.LogAttrs(r.Context(), slog.LevelDebug, "Columns from query", slog.Any("columns", columns))
+		names, err := parseCSV(r.URL.Query().Get("names"))
+		if err != nil {
+			http.Error(w, "Invalid names", http.StatusBadRequest)
+			return
+		}
+		logger.LogAttrs(r.Context(), slog.LevelDebug, "RuuviTags and columns from query", slog.Any("columns", columns), slog.Any("names", names))
 		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 		defer cancel()
-		measurements, err := service.Latest(ctx, n, columns)
+		measurements, err := service.Latest(ctx, n, columns, names)
 		switch {
 		case errors.Is(err, context.DeadlineExceeded):
 			logger.LogAttrs(r.Context(), slog.LevelError, "Timeout while querying measurements", slog.Any("error", err))
@@ -102,13 +107,13 @@ func parseLocation(tz string) (loc *time.Location, err error) {
 	return
 }
 
-func parseColumns(columns string) ([]string, error) {
-	if columns == "" {
+func parseCSV(values string) ([]string, error) {
+	if values == "" {
 		return nil, nil
 	}
-	r := regexp.MustCompile(`^[\w,]*\w$`)
-	if !r.MatchString(columns) {
-		return nil, fmt.Errorf("invalid columns: %s", columns)
+	r := regexp.MustCompile(`^[\w\s,]*\w$`)
+	if !r.MatchString(values) {
+		return nil, fmt.Errorf("invalid values: %s", values)
 	}
-	return strings.Split(columns, ","), nil
+	return strings.Split(values, ","), nil
 }

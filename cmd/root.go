@@ -131,11 +131,11 @@ func run(_ *cobra.Command, _ []string) error {
 	)
 	ctx := context.Background()
 	svc, err := ruuvitag.New(ctx, ruuvitag.Config{
-		PsqlInfo:  psqlInfo,
-		Table:     psqlTable,
-		NameTable: psqlNameTable,
-		Columns:   columns,
-		Logger:    logger,
+		ConnString: psqlInfo,
+		Table:      psqlTable,
+		NameTable:  psqlNameTable,
+		Columns:    columns,
+		Logger:     logger,
 	})
 	if err != nil {
 		return err

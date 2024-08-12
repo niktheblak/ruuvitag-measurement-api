@@ -24,7 +24,7 @@ type mockService struct {
 	Location *time.Location
 }
 
-func (s *mockService) Latest(ctx context.Context, n int, columns []string) (measurements map[string][]sensor.Fields, err error) {
+func (s *mockService) Latest(ctx context.Context, n int, columns []string, names []string) (measurements map[string][]sensor.Fields, err error) {
 	if s.Response != nil {
 		response := make(map[string][]sensor.Fields)
 		for _, v := range s.Response {
