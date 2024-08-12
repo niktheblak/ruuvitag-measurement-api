@@ -2,12 +2,11 @@ package ruuvitag
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"io"
 	"log/slog"
 
-	"github.com/jackc/pgx/v5"
+	"github.com/cenkalti/backoff/v4"
+	"github.com/niktheblak/pgx-reconnect"
 	"github.com/niktheblak/ruuvitag-common/pkg/psql"
 	"github.com/niktheblak/ruuvitag-common/pkg/sensor"
 )
@@ -29,8 +28,7 @@ type Service interface {
 }
 
 type service struct {
-	conn      *pgx.Conn
-	connStr   string
+	conn      *pgxreconnect.ReConn
 	table     string
 	nameTable string
 	columnMap map[string]string
@@ -47,8 +45,12 @@ func New(ctx context.Context, cfg Config) (Service, error) {
 		return nil, err
 	}
 	cfg.Logger.LogAttrs(ctx, slog.LevelDebug, "Columns", slog.Any("column_map", cfg.Columns))
+	conn, err := pgxreconnect.Connect(ctx, cfg.ConnString, backoff.NewExponentialBackOff())
+	if err != nil {
+		return nil, err
+	}
 	s := &service{
-		connStr:   cfg.ConnString,
+		conn:      conn,
 		table:     cfg.Table,
 		nameTable: cfg.NameTable,
 		columnMap: cfg.Columns,
@@ -59,7 +61,7 @@ func New(ctx context.Context, cfg Config) (Service, error) {
 		},
 		logger: cfg.Logger,
 	}
-	return s, s.reconnect(ctx)
+	return s, nil
 }
 
 func (s *service) validColumns(columns []string) ([]string, error) {
@@ -76,11 +78,6 @@ func (s *service) validColumns(columns []string) ([]string, error) {
 }
 
 func (s *service) Latest(ctx context.Context, n int, columns []string, names []string) (measurements map[string][]sensor.Fields, err error) {
-	if s.conn == nil || s.conn.IsClosed() {
-		if err := s.reconnect(ctx); err != nil {
-			return nil, err
-		}
-	}
 	columns, err = s.validColumns(columns)
 	if err != nil {
 		return
@@ -114,7 +111,7 @@ func (s *service) queryMeasurements(ctx context.Context, columns []string, name 
 		return
 	}
 	s.logger.LogAttrs(ctx, slog.LevelDebug, "RuuviTag values query", slog.String("name", name), slog.String("query", q))
-	rows, err := s.query(ctx, q, name)
+	rows, err := s.conn.Query(ctx, q, name)
 	if err != nil {
 		return
 	}
@@ -133,13 +130,8 @@ func (s *service) queryMeasurements(ctx context.Context, columns []string, name 
 }
 
 func (s *service) Ping(ctx context.Context) error {
-	if s.conn == nil || s.conn.IsClosed() {
-		if err := s.reconnect(ctx); err != nil {
-			return err
-		}
-	}
 	if err := s.conn.Ping(ctx); err != nil {
-		return errors.Join(s.reconnect(ctx), s.conn.Ping(ctx))
+		return err
 	}
 	return nil
 }
@@ -154,7 +146,7 @@ func (s *service) queryNames(ctx context.Context) ([]string, error) {
 		return nil, err
 	}
 	s.logger.LogAttrs(ctx, slog.LevelDebug, "RuuviTag names query", slog.String("query", q))
-	rows, err := s.query(ctx, q)
+	rows, err := s.conn.Query(ctx, q)
 	if err != nil {
 		return nil, err
 	}
@@ -168,46 +160,6 @@ func (s *service) queryNames(ctx context.Context) ([]string, error) {
 		names = append(names, name)
 	}
 	return names, rows.Err()
-}
-
-func (s *service) query(ctx context.Context, q string, args ...any) (pgx.Rows, error) {
-	if s.conn == nil || s.conn.IsClosed() {
-		if err := s.reconnect(ctx); err != nil {
-			return nil, fmt.Errorf("failed to reconnect: %w", err)
-		}
-	}
-	rows, err := s.conn.Query(ctx, q, args...)
-	if err == nil {
-		return rows, nil
-	}
-	if err.Error() == "conn closed" {
-		// reconnect and retry
-		if reconnectErr := s.reconnect(ctx); reconnectErr != nil {
-			return nil, fmt.Errorf("failed to reconnect: %w, original error: %w", reconnectErr, err)
-		}
-		rows, err = s.conn.Query(ctx, q, args...)
-		if err == nil {
-			return rows, nil
-		}
-		return nil, err
-	} else {
-		return nil, err
-	}
-}
-
-func (s *service) reconnect(ctx context.Context) error {
-	if s.conn != nil {
-		if err := s.conn.Close(ctx); err != nil {
-			s.logger.LogAttrs(ctx, slog.LevelWarn, "Error while closing connection", slog.String("error", err.Error()))
-		}
-		s.conn = nil
-	}
-	conn, err := pgx.Connect(ctx, s.connStr)
-	if err != nil {
-		return err
-	}
-	s.conn = conn
-	return nil
 }
 
 func popName(f *sensor.Fields) string {

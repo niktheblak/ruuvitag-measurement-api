@@ -1,3 +1,5 @@
+github.com/cenkalti/backoff/v4 v4.3.0 h1:MyRJ/UdXutAwSAT+s3wNd7MfTIcy71VQueUuFK343L8=
+github.com/cenkalti/backoff/v4 v4.3.0/go.mod h1:Y3VNntkOUPxTVeUxJ/G5vcM//AlwfmyYozVcomhLiZE=
 github.com/cpuguy83/go-md2man/v2 v2.0.4/go.mod h1:tgQtvFlXSQOSOSIRvRPT7W67SCa46tRHOmNcaadrF8o=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
@@ -29,6 +31,8 @@ github.com/magiconair/properties v1.8.7 h1:IeQXZAiQcpL9mgcAe1Nu6cX9LLw6ExEHKjN0V
 github.com/magiconair/properties v1.8.7/go.mod h1:Dhd985XPs7jluiymwWYZ0G4Z61jb3vdS329zhj2hYo0=
 github.com/mitchellh/mapstructure v1.5.0 h1:jeMsZIYE/09sWLaz43PL7Gy6RuMjD2eJVyuac5Z2hdY=
 github.com/mitchellh/mapstructure v1.5.0/go.mod h1:bFUtVrKA4DC2yAKiSyO/QUcy7e+RRV2QTWOzhPopBRo=
+github.com/niktheblak/pgx-reconnect v1.0.0 h1:lSq71FI2A59uGCYTMl9KhjCeOB1N2W/WXJjjCO3rNFs=
+github.com/niktheblak/pgx-reconnect v1.0.0/go.mod h1:z6gVGB7lakXKzsYfrXk/H3+wcOF07hikn4OG+XHtgUs=
 github.com/niktheblak/ruuvitag-common v1.3.2 h1:SA6Na3uxp/mp05rM8veTtoKmYM14zrT0kVpOtxK6CRw=
 github.com/niktheblak/ruuvitag-common v1.3.2/go.mod h1:ab6Oiap5Gn3GPcM9jEohfVR8jEm+VMBRIrC+OwPDkqI=
 github.com/niktheblak/web-common v1.1.1 h1:MP6Fo5w50dFvkvWd6P9O2T3s14Ew9ZdDn/ya6o0s/J4=
