@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"log/slog"
+	"time"
 
 	"github.com/cenkalti/backoff/v4"
 	"github.com/niktheblak/pgx-reconnect"
@@ -29,8 +30,6 @@ type Service interface {
 
 type service struct {
 	conn      *pgxreconnect.ReConn
-	table     string
-	nameTable string
 	columnMap map[string]string
 	qb        *psql.QueryBuilder
 	logger    *slog.Logger
@@ -51,8 +50,6 @@ func New(ctx context.Context, cfg Config) (Service, error) {
 	}
 	s := &service{
 		conn:      conn,
-		table:     cfg.Table,
-		nameTable: cfg.NameTable,
 		columnMap: cfg.Columns,
 		qb: &psql.QueryBuilder{
 			Table:     cfg.Table,
@@ -75,6 +72,19 @@ func (s *service) validColumns(columns []string) ([]string, error) {
 		return nil, err
 	}
 	return columns, nil
+}
+
+func (s *service) Ping(ctx context.Context) error {
+	if err := s.conn.Ping(ctx); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *service) Close() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	return s.conn.Close(ctx)
 }
 
 func (s *service) Latest(ctx context.Context, n int, columns []string, names []string) (measurements map[string][]sensor.Fields, err error) {
@@ -105,41 +115,6 @@ func (s *service) Latest(ctx context.Context, n int, columns []string, names []s
 	return
 }
 
-func (s *service) queryMeasurements(ctx context.Context, columns []string, name string, n int) (measurements []sensor.Fields, err error) {
-	q, err := s.qb.Latest(columns, n)
-	if err != nil {
-		return
-	}
-	s.logger.LogAttrs(ctx, slog.LevelDebug, "RuuviTag values query", slog.String("name", name), slog.String("query", q))
-	rows, err := s.conn.Query(ctx, q, name)
-	if err != nil {
-		return
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var f sensor.Fields
-		f, err = s.qb.Collect(rows, columns)
-		if err != nil {
-			return
-		}
-		s.logger.LogAttrs(ctx, slog.LevelDebug, "Returned RuuviTag measurement", slog.Any("measurement", sensor.FromFields(f)))
-		measurements = append(measurements, f)
-	}
-	err = rows.Err()
-	return
-}
-
-func (s *service) Ping(ctx context.Context) error {
-	if err := s.conn.Ping(ctx); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (s *service) Close() error {
-	return s.conn.Close(context.Background())
-}
-
 func (s *service) queryNames(ctx context.Context) ([]string, error) {
 	q, err := s.qb.Names()
 	if err != nil {
@@ -160,6 +135,29 @@ func (s *service) queryNames(ctx context.Context) ([]string, error) {
 		names = append(names, name)
 	}
 	return names, rows.Err()
+}
+
+func (s *service) queryMeasurements(ctx context.Context, columns []string, name string, n int) ([]sensor.Fields, error) {
+	q, err := s.qb.Latest(columns, n)
+	if err != nil {
+		return nil, err
+	}
+	s.logger.LogAttrs(ctx, slog.LevelDebug, "RuuviTag values query", slog.String("name", name), slog.String("query", q))
+	rows, err := s.conn.Query(ctx, q, name)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var measurements []sensor.Fields
+	for rows.Next() {
+		f, err := s.qb.Collect(rows, columns)
+		if err != nil {
+			return nil, err
+		}
+		s.logger.LogAttrs(ctx, slog.LevelDebug, "Returned RuuviTag measurement", slog.Any("measurement", sensor.FromFields(f)))
+		measurements = append(measurements, f)
+	}
+	return measurements, rows.Err()
 }
 
 func popName(f *sensor.Fields) string {
