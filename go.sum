@@ -35,6 +35,8 @@ github.com/niktheblak/pgx-reconnect v1.0.0 h1:lSq71FI2A59uGCYTMl9KhjCeOB1N2W/WXJ
 github.com/niktheblak/pgx-reconnect v1.0.0/go.mod h1:z6gVGB7lakXKzsYfrXk/H3+wcOF07hikn4OG+XHtgUs=
 github.com/niktheblak/ruuvitag-common v1.3.2 h1:SA6Na3uxp/mp05rM8veTtoKmYM14zrT0kVpOtxK6CRw=
 github.com/niktheblak/ruuvitag-common v1.3.2/go.mod h1:ab6Oiap5Gn3GPcM9jEohfVR8jEm+VMBRIrC+OwPDkqI=
+github.com/niktheblak/ruuvitag-common v1.5.0 h1:X3QXo1KGX4FYbZqMkh6s6a2pbE4We1SRLO2zcRRUh70=
+github.com/niktheblak/ruuvitag-common v1.5.0/go.mod h1:qBrlhgsunNrd/srJqYC0kPw2xFNe9uEXvyT+cyehcZA=
 github.com/niktheblak/web-common v1.1.1 h1:MP6Fo5w50dFvkvWd6P9O2T3s14Ew9ZdDn/ya6o0s/J4=
 github.com/niktheblak/web-common v1.1.1/go.mod h1:AkHx+OblQx5ux/tlGiUzp9ltWhQOMaSICqUB3lSLusI=
 github.com/pelletier/go-toml/v2 v2.2.2 h1:aYUidT7k73Pcl9nb2gScu7NSrKCSHIDE89b3+6Wq+LM=
