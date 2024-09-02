@@ -39,6 +39,8 @@ github.com/niktheblak/ruuvitag-common v1.5.0 h1:X3QXo1KGX4FYbZqMkh6s6a2pbE4We1SR
 github.com/niktheblak/ruuvitag-common v1.5.0/go.mod h1:qBrlhgsunNrd/srJqYC0kPw2xFNe9uEXvyT+cyehcZA=
 github.com/niktheblak/web-common v1.1.1 h1:MP6Fo5w50dFvkvWd6P9O2T3s14Ew9ZdDn/ya6o0s/J4=
 github.com/niktheblak/web-common v1.1.1/go.mod h1:AkHx+OblQx5ux/tlGiUzp9ltWhQOMaSICqUB3lSLusI=
+github.com/niktheblak/web-common v1.2.0 h1:rN0uoAbin7gVfX3rUvPGq2tcHxsNmAIYYLUc4jRAPk8=
+github.com/niktheblak/web-common v1.2.0/go.mod h1:PdgU02rkN4u4SheguNyzVlDLaPqRUY/EEsnzWFlhYdo=
 github.com/pelletier/go-toml/v2 v2.2.2 h1:aYUidT7k73Pcl9nb2gScu7NSrKCSHIDE89b3+6Wq+LM=
 github.com/pelletier/go-toml/v2 v2.2.2/go.mod h1:1t835xjRzz80PqgE6HHgN2JOsmgYu/h4qDAS4n929Rs=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
