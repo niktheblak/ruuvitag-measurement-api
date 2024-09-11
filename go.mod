@@ -12,7 +12,7 @@ require (
 require (
 	github.com/cenkalti/backoff/v4 v4.3.0
 	github.com/niktheblak/pgx-reconnect v1.1.0
-	github.com/niktheblak/ruuvitag-common v1.5.0
+	github.com/niktheblak/ruuvitag-common v1.6.0
 	github.com/niktheblak/web-common v1.2.0
 	github.com/spf13/cobra v1.8.1
 	github.com/spf13/viper v1.19.0
