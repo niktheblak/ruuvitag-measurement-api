@@ -2,7 +2,7 @@ module github.com/niktheblak/ruuvitag-measurement-api
 
 go 1.23
 
-toolchain go1.23.1
+toolchain go1.23.2
 
 require (
 	github.com/stretchr/testify v1.9.0
