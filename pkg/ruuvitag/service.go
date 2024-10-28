@@ -4,10 +4,8 @@ import (
 	"context"
 	"io"
 	"log/slog"
-	"time"
 
-	"github.com/cenkalti/backoff/v4"
-	"github.com/niktheblak/pgx-reconnect"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/niktheblak/ruuvitag-common/pkg/psql"
 	"github.com/niktheblak/ruuvitag-common/pkg/sensor"
 )
@@ -29,7 +27,7 @@ type Service interface {
 }
 
 type service struct {
-	conn      *pgxreconnect.ReConn
+	dbpool    *pgxpool.Pool
 	columnMap map[string]string
 	qb        *psql.QueryBuilder
 	logger    *slog.Logger
@@ -44,12 +42,12 @@ func New(ctx context.Context, cfg Config) (Service, error) {
 		return nil, err
 	}
 	cfg.Logger.LogAttrs(ctx, slog.LevelDebug, "Columns", slog.Any("column_map", cfg.Columns))
-	conn, err := pgxreconnect.Connect(ctx, cfg.ConnString, backoff.NewExponentialBackOff())
+	dbpool, err := pgxpool.New(ctx, cfg.ConnString)
 	if err != nil {
 		return nil, err
 	}
 	s := &service{
-		conn:      conn,
+		dbpool:    dbpool,
 		columnMap: cfg.Columns,
 		qb: &psql.QueryBuilder{
 			Table:     cfg.Table,
@@ -75,16 +73,15 @@ func (s *service) validColumns(columns []string) ([]string, error) {
 }
 
 func (s *service) Ping(ctx context.Context) error {
-	if err := s.conn.Ping(ctx); err != nil {
+	if err := s.dbpool.Ping(ctx); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (s *service) Close() error {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	return s.conn.Close(ctx)
+	s.dbpool.Close()
+	return nil
 }
 
 func (s *service) Latest(ctx context.Context, n int, columns []string, names []string) (measurements map[string][]sensor.Fields, err error) {
@@ -121,7 +118,7 @@ func (s *service) queryNames(ctx context.Context) ([]string, error) {
 		return nil, err
 	}
 	s.logger.LogAttrs(ctx, slog.LevelDebug, "RuuviTag names query", slog.String("query", q))
-	rows, err := s.conn.Query(ctx, q)
+	rows, err := s.dbpool.Query(ctx, q)
 	if err != nil {
 		return nil, err
 	}
@@ -143,7 +140,7 @@ func (s *service) queryMeasurements(ctx context.Context, columns []string, name 
 		return nil, err
 	}
 	s.logger.LogAttrs(ctx, slog.LevelDebug, "RuuviTag values query", slog.String("name", name), slog.String("query", q))
-	rows, err := s.conn.Query(ctx, q, name)
+	rows, err := s.dbpool.Query(ctx, q, name)
 	if err != nil {
 		return nil, err
 	}
