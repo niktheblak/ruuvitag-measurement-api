@@ -7,7 +7,7 @@ RUN go mod download && go mod verify
 COPY . .
 RUN go build -v -o /go/bin/app
 
-FROM ubuntu:latest
+FROM ubuntu:24.04
 
 RUN apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y -q tzdata \
