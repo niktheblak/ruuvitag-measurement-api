@@ -26,10 +26,14 @@ func latestHandler(service ruuvitag.Service, columnMap map[string]string, logger
 			http.Error(w, "Invalid timezone", http.StatusBadRequest)
 			return
 		}
-		n, err := parseN(r.URL.Query().Get("n"), 1)
-		if err != nil {
-			http.Error(w, "Invalid n", http.StatusBadRequest)
-			return
+		n := 1
+		if r.URL.Query().Get("n") != "" {
+			val, err := strconv.ParseInt(r.URL.Query().Get("n"), 10, 32)
+			if err != nil {
+				http.Error(w, "Invalid n", http.StatusBadRequest)
+				return
+			}
+			n = int(val)
 		}
 		columns, err := parseCSV(r.URL.Query().Get("columns"))
 		if err != nil {
@@ -89,13 +93,6 @@ func latestHandler(service ruuvitag.Service, columnMap map[string]string, logger
 			}
 		}
 	})
-}
-
-func parseN(n string, defaultValue int) (int, error) {
-	if n == "" {
-		return defaultValue, nil
-	}
-	return strconv.Atoi(n)
 }
 
 func parseLocation(tz string) (loc *time.Location, err error) {
