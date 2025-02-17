@@ -13,7 +13,7 @@ require (
 	github.com/jackc/pgx/v5 v5.7.2
 	github.com/niktheblak/ruuvitag-common v1.6.0
 	github.com/niktheblak/web-common v1.2.0
-	github.com/spf13/cobra v1.9.0
+	github.com/spf13/cobra v1.9.1
 	github.com/spf13/viper v1.19.0
 )
 
