@@ -14,7 +14,7 @@ require (
 	github.com/niktheblak/ruuvitag-common v1.6.0
 	github.com/niktheblak/web-common v1.2.0
 	github.com/spf13/cobra v1.9.1
-	github.com/spf13/viper v1.20.0
+	github.com/spf13/viper v1.20.1
 )
 
 require (
