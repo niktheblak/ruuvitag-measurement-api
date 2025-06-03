@@ -6,6 +6,11 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    permissions:
+      packages: read
+      actions: read
+      contents: read
+
     steps:
     - uses: actions/checkout@v4
 
