@@ -1,0 +1,30 @@
+version: '3'
+
+vars:
+  DOCKER_IMAGE: ruuvitag-measurement-api
+
+tasks:
+  build:
+    dir: '{{.USER_WORKING_DIR}}'
+    cmds:
+      - go build
+
+  install:
+    dir: '{{.USER_WORKING_DIR}}'
+    cmds: 
+      - go install
+
+  test:
+    dir: '{{.USER_WORKING_DIR}}'
+    cmds:
+      - go test ./...
+
+  fmt:
+    dir: '{{.USER_WORKING_DIR}}'
+    cmds:
+      - go fmt ./...
+
+  build-docker:
+    dir: '{{.USER_WORKING_DIR}}'
+    cmds:
+      - docker build -t ruuvitag-measurement-api:latest .
