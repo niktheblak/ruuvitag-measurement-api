@@ -11,8 +11,7 @@ FROM ubuntu:24.04
 
 RUN apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y -q tzdata \
-    && rm -r /var/cache/apt \
-    && rm -r /var/lib/apt/lists
+    && apt-get clean
 
 COPY --from=build /go/bin/app /
 
