@@ -29,7 +29,7 @@ func latestHandler(service ruuvitag.Service, columnMap map[string]string, logger
 		n := 1
 		if r.URL.Query().Get("n") != "" {
 			val, err := strconv.ParseInt(r.URL.Query().Get("n"), 10, 32)
-			if err != nil {
+			if err != nil || val < 1 {
 				http.Error(w, "Invalid n", http.StatusBadRequest)
 				return
 			}
@@ -65,32 +65,17 @@ func latestHandler(service ruuvitag.Service, columnMap map[string]string, logger
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Cache-Control", "no-store, max-age=0")
+		var response any
 		if n == 1 {
-			response := make(map[string]map[string]any)
-			for k, m := range measurements {
-				if len(m) == 0 {
-					continue
-				}
-				fields := m[0]
-				fields.Timestamp = fields.Timestamp.In(loc)
-				response[k] = columnmap.TransformFields(columnMap, fields)
-			}
-			if err := json.NewEncoder(w).Encode(response); err != nil {
-				logger.LogAttrs(r.Context(), slog.LevelError, "Error while writing output", slog.Any("error", err))
-				return
-			}
+			// flatten the map to a single measurement per column for easier JSON readability
+			response = newest(measurements, columnMap, loc)
 		} else {
-			response := make(map[string][]map[string]any)
-			for k, ms := range measurements {
-				for _, m := range ms {
-					m.Timestamp = m.Timestamp.In(loc)
-					response[k] = append(response[k], columnmap.TransformFields(columnMap, m))
-				}
-			}
-			if err := json.NewEncoder(w).Encode(response); err != nil {
-				logger.LogAttrs(r.Context(), slog.LevelError, "Error while writing output", slog.Any("error", err))
-				return
-			}
+			// return measurements as a map of lists with a maximum of n measurements per column
+			response = newestN(measurements, n, columnMap, loc)
+		}
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			logger.LogAttrs(r.Context(), slog.LevelError, "Error while writing output", slog.Any("error", err))
+			return
 		}
 	})
 }
@@ -113,4 +98,31 @@ func parseCSV(values string) ([]string, error) {
 		return nil, fmt.Errorf("invalid values: %s", values)
 	}
 	return strings.Split(values, ","), nil
+}
+
+func newest(measurements map[string][]sensor.Fields, columnMap map[string]string, loc *time.Location) map[string]map[string]any {
+	response := make(map[string]map[string]any)
+	for k, m := range measurements {
+		if len(m) == 0 {
+			continue
+		}
+		fields := m[0]
+		fields.Timestamp = fields.Timestamp.In(loc)
+		response[k] = columnmap.TransformFields(columnMap, fields)
+	}
+	return response
+}
+
+func newestN(measurements map[string][]sensor.Fields, n int, columnMap map[string]string, loc *time.Location) map[string][]map[string]any {
+	response := make(map[string][]map[string]any)
+	for k, ms := range measurements {
+		for i, m := range ms {
+			if i == n {
+				break
+			}
+			m.Timestamp = m.Timestamp.In(loc)
+			response[k] = append(response[k], columnmap.TransformFields(columnMap, m))
+		}
+	}
+	return response
 }
