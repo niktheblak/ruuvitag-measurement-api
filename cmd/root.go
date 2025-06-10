@@ -22,6 +22,11 @@ import (
 
 var DefaultColumns = sensor.DefaultColumnMap
 
+const (
+	postgresPortConfigKey = "postgres.port"
+	serverPortConfigKey   = "server.port"
+)
+
 var (
 	cfgFile  string
 	logLevel string
@@ -47,21 +52,21 @@ func init() {
 	rootCmd.Flags().StringVar(&logLevel, "loglevel", "", "log level")
 
 	rootCmd.Flags().String("postgres.host", "", "host")
-	rootCmd.Flags().Int("postgres.port", 0, "port")
+	rootCmd.Flags().Int(postgresPortConfigKey, 0, "port")
 	rootCmd.Flags().String("postgres.username", "", "username")
 	rootCmd.Flags().String("postgres.password", "", "username")
 	rootCmd.Flags().String("postgres.database", "", "database name")
 	rootCmd.Flags().String("postgres.table", "", "table name")
 	rootCmd.Flags().String("postgres.name_table", "", "RuuviTag name table name")
-	rootCmd.Flags().Int("server.port", 0, "Server port")
+	rootCmd.Flags().Int(serverPortConfigKey, 0, "Server port")
 	rootCmd.Flags().StringSlice("server.token", nil, "Allowed API access tokens")
 	rootCmd.Flags().StringToString("columns", nil, "columns to use")
 
 	cobra.CheckErr(viper.BindPFlags(rootCmd.Flags()))
 
 	viper.SetDefault("loglevel", "info")
-	viper.SetDefault("postgres.port", "5432")
-	viper.SetDefault("server.port", 8080)
+	viper.SetDefault(postgresPortConfigKey, "5432")
+	viper.SetDefault(serverPortConfigKey, 8080)
 }
 
 func initConfig() {
@@ -99,7 +104,7 @@ func run(_ *cobra.Command, _ []string) error {
 	var (
 		accessToken   = viper.GetStringSlice("server.token")
 		psqlHost      = viper.GetString("postgres.host")
-		psqlPort      = viper.GetInt("postgres.port")
+		psqlPort      = viper.GetInt(postgresPortConfigKey)
 		psqlUsername  = viper.GetString("postgres.username")
 		psqlPassword  = viper.GetString("postgres.password")
 		psqlDatabase  = viper.GetString("postgres.database")
@@ -150,7 +155,7 @@ func run(_ *cobra.Command, _ []string) error {
 	}
 	httpServer := graceful.Shutdown{
 		Server: &http.Server{
-			Addr:    fmt.Sprintf(":%d", viper.GetInt("server.port")),
+			Addr:    fmt.Sprintf(":%d", viper.GetInt(serverPortConfigKey)),
 			Handler: server.New(svc, columns, authenticator, logger),
 		},
 		ShutdownTimeout: 5 * time.Second,
