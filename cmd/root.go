@@ -82,7 +82,7 @@ func initConfig() {
 	viper.AutomaticEnv()
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	if err := viper.ReadInConfig(); err != nil {
-		// use only command line options
+		fmt.Println("Config file not found, using config from environment variables and arguments")
 	}
 }
 
@@ -94,7 +94,7 @@ func preRun(_ *cobra.Command, _ []string) error {
 	h := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: level})
 	logger = slog.New(h)
 	if viper.ConfigFileUsed() != "" {
-		logger.LogAttrs(nil, slog.LevelInfo, "Using config file", slog.String("config", viper.ConfigFileUsed()))
+		logger.LogAttrs(context.TODO(), slog.LevelInfo, "Using config file", slog.String("config", viper.ConfigFileUsed()))
 	}
 	logger.Info("Using log level", "level", level)
 	return nil
@@ -124,7 +124,7 @@ func run(_ *cobra.Command, _ []string) error {
 		psqlDatabase,
 	)
 	logger.LogAttrs(
-		nil,
+		context.TODO(),
 		slog.LevelInfo,
 		"Connecting to PostgreSQL",
 		slog.String("host", psqlHost),
