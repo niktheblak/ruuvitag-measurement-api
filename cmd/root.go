@@ -11,13 +11,12 @@ import (
 	"time"
 
 	"github.com/niktheblak/ruuvitag-common/pkg/sensor"
+	"github.com/niktheblak/ruuvitag-measurement-api/internal/server"
+	"github.com/niktheblak/ruuvitag-measurement-api/pkg/ruuvitag"
 	"github.com/niktheblak/web-common/pkg/auth"
 	"github.com/niktheblak/web-common/pkg/graceful"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-
-	"github.com/niktheblak/ruuvitag-measurement-api/internal/server"
-	"github.com/niktheblak/ruuvitag-measurement-api/pkg/ruuvitag"
 )
 
 var DefaultColumns = sensor.DefaultColumnMap
@@ -87,7 +86,7 @@ func initConfig() {
 }
 
 func preRun(_ *cobra.Command, _ []string) error {
-	var level = new(slog.LevelVar)
+	level := new(slog.LevelVar)
 	if err := level.UnmarshalText([]byte(viper.GetString("loglevel"))); err != nil {
 		return err
 	}

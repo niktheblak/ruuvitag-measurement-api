@@ -11,10 +11,9 @@ import (
 	"time"
 
 	"github.com/niktheblak/ruuvitag-common/pkg/sensor"
+	"github.com/niktheblak/web-common/pkg/auth"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/niktheblak/web-common/pkg/auth"
 )
 
 const testAccessToken = "a65cd12f9bba453"

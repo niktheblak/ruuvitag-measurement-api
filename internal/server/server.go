@@ -7,11 +7,10 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/niktheblak/ruuvitag-measurement-api/pkg/ruuvitag"
 	"github.com/niktheblak/web-common/pkg/auth"
 	"github.com/niktheblak/web-common/pkg/healthcheck"
 	"github.com/niktheblak/web-common/pkg/middleware"
-
-	"github.com/niktheblak/ruuvitag-measurement-api/pkg/ruuvitag"
 )
 
 func New(service ruuvitag.Service, columns map[string]string, authenticator auth.Authenticator, logger *slog.Logger) http.Handler {
