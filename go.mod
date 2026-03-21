@@ -1,6 +1,6 @@
 module github.com/niktheblak/ruuvitag-measurement-api
 
-go 1.25
+go 1.25.0
 
 toolchain go1.26.1
 
@@ -10,7 +10,7 @@ require (
 )
 
 require (
-	github.com/jackc/pgx/v5 v5.8.0
+	github.com/jackc/pgx/v5 v5.9.0
 	github.com/niktheblak/ruuvitag-common v1.7.1
 	github.com/niktheblak/web-common v1.2.0
 	github.com/spf13/cobra v1.10.2
