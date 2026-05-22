@@ -30,6 +30,8 @@ github.com/niktheblak/ruuvitag-common v1.7.1 h1:VWGnSn/maSMbgUANNc0ueCFNtASJka2R
 github.com/niktheblak/ruuvitag-common v1.7.1/go.mod h1:0qZn8wYJ3uzuvATQoZb7TKjXJ0KJiG5Raqv0SZi3zcc=
 github.com/niktheblak/ruuvitag-common v1.7.2 h1:yTMpDMHOafmy+CNrB8kd82d5SGdspeCRk9pa7wU/hAE=
 github.com/niktheblak/ruuvitag-common v1.7.2/go.mod h1:VVZETvi158OgQt3D7Gdq0Bm29DRpOp6IG4mKIkodKB8=
+github.com/niktheblak/ruuvitag-common v1.7.3 h1:9OfIX56IRJ8m/RmExrmjZESwZ+a916lMRcgry1GNRA8=
+github.com/niktheblak/ruuvitag-common v1.7.3/go.mod h1:V2B7jNYBkitmGG/uYXljxVD09w/L8TauYZ8rrcWmG40=
 github.com/niktheblak/web-common v1.2.0 h1:rN0uoAbin7gVfX3rUvPGq2tcHxsNmAIYYLUc4jRAPk8=
 github.com/niktheblak/web-common v1.2.0/go.mod h1:PdgU02rkN4u4SheguNyzVlDLaPqRUY/EEsnzWFlhYdo=
 github.com/pelletier/go-toml/v2 v2.3.0 h1:k59bC/lIZREW0/iVaQR8nDHxVq8OVlIzYCOJf421CaM=
