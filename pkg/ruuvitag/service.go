@@ -2,11 +2,11 @@ package ruuvitag
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log/slog"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/niktheblak/ruuvitag-common/pkg/psql"
 	"github.com/niktheblak/ruuvitag-common/pkg/sensor"
 )
 
@@ -14,6 +14,7 @@ type Config struct {
 	ConnString string
 	Table      string
 	NameTable  string
+	NameColumn string
 	Columns    map[string]string
 	Logger     *slog.Logger
 }
@@ -29,7 +30,7 @@ type Service interface {
 type service struct {
 	dbpool    *pgxpool.Pool
 	columnMap map[string]string
-	qb        *psql.QueryBuilder
+	qb        *QueryBuilder
 	logger    *slog.Logger
 }
 
@@ -49,10 +50,11 @@ func New(ctx context.Context, cfg Config) (Service, error) {
 	s := &service{
 		dbpool:    dbpool,
 		columnMap: cfg.Columns,
-		qb: &psql.QueryBuilder{
-			Table:     cfg.Table,
-			NameTable: cfg.NameTable,
-			Columns:   cfg.Columns,
+		qb: &QueryBuilder{
+			Table:      cfg.Table,
+			NameTable:  cfg.NameTable,
+			NameColumn: cfg.NameColumn,
+			Columns:    cfg.Columns,
 		},
 		logger: cfg.Logger,
 	}
@@ -90,57 +92,66 @@ func (s *service) Latest(ctx context.Context, n int, columns []string, names []s
 		return
 	}
 	s.logger.LogAttrs(ctx, slog.LevelDebug, "Response columns", slog.Any("columns", columns))
+	var macs map[string]string
 	if len(names) == 0 {
-		names, err = s.queryNames(ctx)
+		macs, err = s.queryAllMACs(ctx)
 		if err != nil {
 			return
 		}
+	} else {
+		macs, err = s.queryMACs(ctx, names)
 	}
-	s.logger.LogAttrs(ctx, slog.LevelDebug, "Querying measurements from RuuviTags with names", slog.Any("names", names))
+	s.logger.LogAttrs(ctx, slog.LevelDebug, "Querying measurements from RuuviTags", slog.Any("names", macs))
 	measurements = make(map[string][]sensor.Fields)
-	for _, name := range names {
+	for name, mac := range macs {
 		var ms []sensor.Fields
-		ms, err = s.queryMeasurements(ctx, columns, name, n)
+		ms, err = s.queryMeasurements(ctx, columns, mac, n)
 		if err != nil {
 			return
 		}
 		for _, m := range ms {
-			k := popName(&m)
-			measurements[k] = append(measurements[k], m)
+			measurements[name] = append(measurements[name], m)
 		}
 	}
 	return
 }
 
-func (s *service) queryNames(ctx context.Context) ([]string, error) {
-	q, err := s.qb.Names()
-	if err != nil {
-		return nil, err
-	}
-	s.logger.LogAttrs(ctx, slog.LevelDebug, "RuuviTag names query", slog.String("query", q))
+func (s *service) queryAllMACs(ctx context.Context) (map[string]string, error) {
+	q := fmt.Sprintf("SELECT %s, %s FROM %s", s.qb.Columns["mac"], s.qb.NameColumn, s.qb.NameTable)
+	s.logger.LogAttrs(ctx, slog.LevelDebug, "RuuviTag all MACs query", slog.String("query", q))
+	return s.doMACNameQuery(ctx, q)
+}
+
+func (s *service) queryMACs(ctx context.Context, names []string) (map[string]string, error) {
+	q := s.qb.Names(names)
+	s.logger.LogAttrs(ctx, slog.LevelDebug, "RuuviTag MACs query", slog.String("query", q))
+	return s.doMACNameQuery(ctx, q)
+}
+
+func (s *service) doMACNameQuery(ctx context.Context, q string) (map[string]string, error) {
 	rows, err := s.dbpool.Query(ctx, q)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var names []string
+	namesMap := make(map[string]string)
 	for rows.Next() {
-		var name string
-		if err = rows.Scan(&name); err != nil {
+		var mac, name string
+		if err = rows.Scan(&mac, &name); err != nil {
 			return nil, err
 		}
-		names = append(names, name)
+		namesMap[name] = mac
 	}
-	return names, rows.Err()
+	return namesMap, rows.Err()
 }
 
-func (s *service) queryMeasurements(ctx context.Context, columns []string, name string, n int) ([]sensor.Fields, error) {
+func (s *service) queryMeasurements(ctx context.Context, columns []string, mac string, n int) ([]sensor.Fields, error) {
 	q, err := s.qb.Latest(columns, n)
 	if err != nil {
 		return nil, err
 	}
-	s.logger.LogAttrs(ctx, slog.LevelDebug, "RuuviTag values query", slog.String("name", name), slog.String("query", q))
-	rows, err := s.dbpool.Query(ctx, q, name)
+	s.logger.LogAttrs(ctx, slog.LevelDebug, "RuuviTag values query", slog.String("mac", mac), slog.String("query", q))
+	rows, err := s.dbpool.Query(ctx, q, mac)
 	if err != nil {
 		return nil, err
 	}
@@ -155,20 +166,4 @@ func (s *service) queryMeasurements(ctx context.Context, columns []string, name 
 		measurements = append(measurements, f)
 	}
 	return measurements, rows.Err()
-}
-
-func popName(f *sensor.Fields) string {
-	var name string
-	if f.Name != nil && *f.Name != "" {
-		name = *f.Name
-		f.Name = nil
-	}
-	if name != "" {
-		return name
-	}
-	if f.Addr != nil && *f.Addr != "" {
-		name = *f.Addr
-		f.Addr = nil
-	}
-	return name
 }
