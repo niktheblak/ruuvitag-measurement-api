@@ -39,9 +39,6 @@ func New(ctx context.Context, cfg Config) (Service, error) {
 	if cfg.Logger == nil {
 		cfg.Logger = slog.New(slog.NewTextHandler(io.Discard, nil))
 	}
-	if err := sensor.ValidateColumnMapping(cfg.Columns); err != nil {
-		return nil, err
-	}
 	cfg.Logger.LogAttrs(ctx, slog.LevelDebug, "Columns", slog.Any("column_map", cfg.Columns))
 	dbpool, err := pgxpool.New(ctx, cfg.ConnString)
 	if err != nil {
