@@ -2,7 +2,6 @@ package ruuvitag
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"log/slog"
 
@@ -91,12 +90,12 @@ func (s *service) Latest(ctx context.Context, n int, columns []string, names []s
 	s.logger.LogAttrs(ctx, slog.LevelDebug, "Response columns", slog.Any("columns", columns))
 	var macs map[string]string
 	if len(names) == 0 {
-		macs, err = s.queryAllMACs(ctx)
+		macs, err = s.queryAllNames(ctx)
 		if err != nil {
 			return
 		}
 	} else {
-		macs, err = s.queryMACs(ctx, names)
+		macs, err = s.queryNames(ctx, names)
 	}
 	s.logger.LogAttrs(ctx, slog.LevelDebug, "Querying measurements from RuuviTags", slog.Any("names", macs))
 	measurements = make(map[string][]sensor.Fields)
@@ -106,26 +105,24 @@ func (s *service) Latest(ctx context.Context, n int, columns []string, names []s
 		if err != nil {
 			return
 		}
-		for _, m := range ms {
-			measurements[name] = append(measurements[name], m)
-		}
+		measurements[name] = append(measurements[name], ms...)
 	}
 	return
 }
 
-func (s *service) queryAllMACs(ctx context.Context) (map[string]string, error) {
-	q := fmt.Sprintf("SELECT %s, %s FROM %s", s.qb.Columns["mac"], s.qb.NameColumn, s.qb.NameTable)
-	s.logger.LogAttrs(ctx, slog.LevelDebug, "RuuviTag all MACs query", slog.String("query", q))
-	return s.doMACNameQuery(ctx, q)
+func (s *service) queryAllNames(ctx context.Context) (map[string]string, error) {
+	q := s.qb.AllNames()
+	s.logger.LogAttrs(ctx, slog.LevelDebug, "RuuviTag all names query", slog.String("query", q))
+	return s.runNamesQuery(ctx, q)
 }
 
-func (s *service) queryMACs(ctx context.Context, names []string) (map[string]string, error) {
+func (s *service) queryNames(ctx context.Context, names []string) (map[string]string, error) {
 	q := s.qb.Names(names)
-	s.logger.LogAttrs(ctx, slog.LevelDebug, "RuuviTag MACs query", slog.String("query", q))
-	return s.doMACNameQuery(ctx, q)
+	s.logger.LogAttrs(ctx, slog.LevelDebug, "RuuviTag names query", slog.String("query", q))
+	return s.runNamesQuery(ctx, q)
 }
 
-func (s *service) doMACNameQuery(ctx context.Context, q string) (map[string]string, error) {
+func (s *service) runNamesQuery(ctx context.Context, q string) (map[string]string, error) {
 	rows, err := s.dbpool.Query(ctx, q)
 	if err != nil {
 		return nil, err

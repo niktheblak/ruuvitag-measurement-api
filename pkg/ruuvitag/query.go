@@ -18,6 +18,10 @@ var (
         FROM {{.Table}}
         WHERE {{.NameColumn}} = ANY(ARRAY[{{.Names}}])
 	`))
+	allNamesTmpl = template.Must(template.New("SelectAllNames").Parse(`
+		SELECT {{.MACColumn}}, {{.NameColumn}}
+        FROM {{.Table}}
+	`))
 	measurementsTmpl = template.Must(template.New("SelectMeasurements").Parse(`
 		SELECT {{.Columns}}
 		FROM {{.Table}}
@@ -48,6 +52,24 @@ func (q *QueryBuilder) Names(names []string) string {
 	var b strings.Builder
 	err := namesTmpl.Execute(&b, namesTmplValues{
 		Names:      strings.Join(quotedNames, ","),
+		Table:      q.NameTable,
+		MACColumn:  q.Columns["mac"],
+		NameColumn: q.NameColumn,
+	})
+	if err != nil {
+		panic(err)
+	}
+	return b.String()
+}
+
+func (q *QueryBuilder) AllNames() string {
+	type allNamesTmplValues struct {
+		Table      string
+		MACColumn  string
+		NameColumn string
+	}
+	var b strings.Builder
+	err := allNamesTmpl.Execute(&b, allNamesTmplValues{
 		Table:      q.NameTable,
 		MACColumn:  q.Columns["mac"],
 		NameColumn: q.NameColumn,
