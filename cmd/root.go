@@ -11,12 +11,13 @@ import (
 	"time"
 
 	"github.com/niktheblak/ruuvitag-common/pkg/sensor"
-	"github.com/niktheblak/ruuvitag-measurement-api/internal/server"
-	"github.com/niktheblak/ruuvitag-measurement-api/pkg/ruuvitag"
 	"github.com/niktheblak/web-common/pkg/auth"
 	"github.com/niktheblak/web-common/pkg/graceful"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+
+	"github.com/niktheblak/ruuvitag-measurement-api/internal/server"
+	"github.com/niktheblak/ruuvitag-measurement-api/pkg/ruuvitag"
 )
 
 var DefaultColumns = sensor.DefaultColumnMap
@@ -155,8 +156,9 @@ func run(_ *cobra.Command, _ []string) error {
 	}
 	httpServer := graceful.Shutdown{
 		Server: &http.Server{
-			Addr:    fmt.Sprintf(":%d", viper.GetInt(serverPortConfigKey)),
-			Handler: server.New(svc, columns, authenticator, logger),
+			Addr:              fmt.Sprintf(":%d", viper.GetInt(serverPortConfigKey)),
+			Handler:           server.New(svc, columns, authenticator, logger),
+			ReadHeaderTimeout: 5 * time.Second,
 		},
 		ShutdownTimeout: 5 * time.Second,
 		Signals:         []os.Signal{os.Interrupt},

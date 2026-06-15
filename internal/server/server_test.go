@@ -16,7 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const testAccessToken = "a65cd12f9bba453"
+const testAccessToken = "a65cd12f9bba453" //nolint:gosec
 
 type mockService struct {
 	Response []sensor.Fields

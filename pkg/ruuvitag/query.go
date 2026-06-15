@@ -39,7 +39,7 @@ type QueryBuilder struct {
 }
 
 func (q *QueryBuilder) Names(names []string) string {
-	var quotedNames []string
+	quotedNames := make([]string, 0, len(names))
 	for _, name := range names {
 		quotedNames = append(quotedNames, fmt.Sprintf(`'%s'`, name))
 	}

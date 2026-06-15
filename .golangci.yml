@@ -33,5 +33,4 @@ formatters:
     goimports:
       local-prefixes:
         - github.com/niktheblak/ruuvitag-measurement-api
-        - github.com/niktheblak/ruuvitag-common
 
