@@ -138,6 +138,7 @@ func run(_ *cobra.Command, _ []string) error {
 		ConnString: psqlInfo,
 		Table:      psqlTable,
 		NameTable:  psqlNameTable,
+		NameColumn: "name",
 		Columns:    columns,
 		Logger:     logger,
 	})
