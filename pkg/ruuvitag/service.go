@@ -2,6 +2,7 @@ package ruuvitag
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log/slog"
 
@@ -27,10 +28,11 @@ type Service interface {
 }
 
 type service struct {
-	dbpool    *pgxpool.Pool
-	columnMap map[string]string
-	qb        *QueryBuilder
-	logger    *slog.Logger
+	dbpool       *pgxpool.Pool
+	columnMap    map[string]string
+	columnValues map[string]interface{}
+	qb           *QueryBuilder
+	logger       *slog.Logger
 }
 
 // New creates a new instance of the service using the given config
@@ -54,6 +56,10 @@ func New(ctx context.Context, cfg Config) (Service, error) {
 		},
 		logger: cfg.Logger,
 	}
+	s.columnValues = make(map[string]interface{})
+	for _, c := range cfg.Columns {
+		s.columnValues[c] = struct{}{}
+	}
 	return s, nil
 }
 
@@ -63,9 +69,13 @@ func (s *service) validColumns(columns []string) ([]string, error) {
 		for _, c := range s.columnMap {
 			columns = append(columns, c)
 		}
+		return columns, nil
 	}
-	if err := sensor.ValidateRequestedColumns(s.columnMap, columns); err != nil {
-		return nil, err
+	for _, c := range columns {
+		_, ok := s.columnValues[c]
+		if !ok {
+			return nil, fmt.Errorf("%w: %s", sensor.ErrInvalidColumn, c)
+		}
 	}
 	return columns, nil
 }
@@ -87,7 +97,6 @@ func (s *service) Latest(ctx context.Context, n int, columns []string, names []s
 	if err != nil {
 		return
 	}
-	s.logger.LogAttrs(ctx, slog.LevelDebug, "Response columns", slog.Any("columns", columns))
 	var macs map[string]string
 	if len(names) == 0 {
 		macs, err = s.queryAllNames(ctx)

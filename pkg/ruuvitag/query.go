@@ -136,9 +136,6 @@ func (q *QueryBuilder) Collect(res Scanner, columns []string) (sensor.Fields, er
 		case q.Columns["battery_voltage"]:
 			d.BatteryVoltage = sensor.ZeroFloat64Pointer()
 			pointers[i] = d.BatteryVoltage
-		case q.Columns["tx_power"]:
-			d.TxPower = sensor.ZeroIntPointer()
-			pointers[i] = d.TxPower
 		case q.Columns["acceleration_x"]:
 			d.AccelerationX = sensor.ZeroIntPointer()
 			pointers[i] = d.AccelerationX

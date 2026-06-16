@@ -20,6 +20,7 @@ import (
 )
 
 func latestHandler(service ruuvitag.Service, columnMap map[string]string, logger *slog.Logger) http.Handler {
+	defaultColumns := []string{columnMap["time"], columnMap["mac"]}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		loc, err := parseLocation(r.URL.Query().Get("tz"))
 		if err != nil {
@@ -29,9 +30,9 @@ func latestHandler(service ruuvitag.Service, columnMap map[string]string, logger
 		}
 		count := 1
 		if r.URL.Query().Get("count") != "" {
-			val, err := strconv.ParseInt(r.URL.Query().Get("n"), 10, 32)
+			val, err := strconv.ParseInt(r.URL.Query().Get("count"), 10, 32)
 			if err != nil || val < 1 {
-				http.Error(w, "Invalid n", http.StatusBadRequest)
+				http.Error(w, "Invalid count", http.StatusBadRequest)
 				return
 			}
 			count = int(val)
@@ -41,17 +42,19 @@ func latestHandler(service ruuvitag.Service, columnMap map[string]string, logger
 			http.Error(w, "Invalid columns", http.StatusBadRequest)
 			return
 		}
-		slices.Sort(columns)
+		if slices.Contains(columns, columnMap["name"]) {
+			http.Error(w, "Query must not contain colum \"name\"", http.StatusBadRequest)
+			return
+		}
 		names, err := parseCSV(r.URL.Query().Get("names"))
 		if err != nil {
 			http.Error(w, "Invalid names", http.StatusBadRequest)
 			return
 		}
-		slices.Sort(names)
-		logger.LogAttrs(r.Context(), slog.LevelDebug, "RuuviTags and columns from query", slog.Any("columns", columns), slog.Any("names", names))
 		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 		defer cancel()
-		measurements, err := service.Latest(ctx, count, columns, names)
+		queryColumns := mergeColumns(columns, defaultColumns)
+		measurements, err := service.Latest(ctx, count, queryColumns, names)
 		switch {
 		case errors.Is(err, context.DeadlineExceeded):
 			logger.LogAttrs(r.Context(), slog.LevelError, "Timeout while querying measurements", slog.Any("error", err))
@@ -98,13 +101,13 @@ func parseCSV(values string) ([]string, error) {
 }
 
 type response struct {
-	Timezone string       `json:"tz"`
+	Timezone string       `json:"tz,omitempty"`
 	Columns  []string     `json:"columns"`
 	Series   []seriesItem `json:"series"`
 }
 
 type seriesItem struct {
-	Name         string           `json:"name"`
+	Name         string           `json:"name,omitempty"`
 	MAC          string           `json:"mac"`
 	Measurements []map[string]any `json:"measurements"`
 }
@@ -121,6 +124,9 @@ func newest(measurements map[string][]sensor.Fields, count int, columnMap map[st
 			if i == count {
 				break
 			}
+			if m.Addr == nil {
+				panic("Mandatory field m.Addr is nil")
+			}
 			item.MAC = *m.Addr
 			m.Timestamp = m.Timestamp.In(loc)
 			item.Measurements = append(item.Measurements, columnmap.TransformFields(columnMap, m))
@@ -128,4 +134,19 @@ func newest(measurements map[string][]sensor.Fields, count int, columnMap map[st
 		resp.Series = append(resp.Series, item)
 	}
 	return resp
+}
+
+func mergeColumns(a, b []string) []string {
+	m := make(map[string]interface{})
+	for _, c := range a {
+		m[c] = struct{}{}
+	}
+	for _, c := range b {
+		m[c] = struct{}{}
+	}
+	var r []string
+	for k := range m {
+		r = append(r, k)
+	}
+	return r
 }
