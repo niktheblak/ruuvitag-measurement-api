@@ -7,14 +7,12 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/niktheblak/web-common/pkg/auth"
 	"github.com/niktheblak/web-common/pkg/healthcheck"
-	"github.com/niktheblak/web-common/pkg/middleware"
 
 	"github.com/niktheblak/ruuvitag-measurement-api/pkg/ruuvitag"
 )
 
-func New(service ruuvitag.Service, columns map[string]string, authenticator auth.Authenticator, logger *slog.Logger) http.Handler {
+func New(service ruuvitag.Service, columns map[string]string, logger *slog.Logger) http.Handler {
 	if logger == nil {
 		logger = slog.New(slog.NewTextHandler(io.Discard, nil))
 	}
@@ -24,6 +22,6 @@ func New(service ruuvitag.Service, columns map[string]string, authenticator auth
 		defer cancel()
 		return service.Ping(ctx)
 	}, logger))
-	mux.Handle("/", middleware.Authenticator(latestHandler(service, columns, logger), authenticator))
+	mux.Handle("/", latestHandler(service, columns, logger))
 	return mux
 }

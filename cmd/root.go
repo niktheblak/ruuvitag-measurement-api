@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/niktheblak/ruuvitag-common/pkg/sensor"
-	"github.com/niktheblak/web-common/pkg/auth"
 	"github.com/niktheblak/web-common/pkg/graceful"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -59,7 +58,6 @@ func init() {
 	rootCmd.Flags().String("postgres.table", "", "table name")
 	rootCmd.Flags().String("postgres.name_table", "", "RuuviTag name table name")
 	rootCmd.Flags().Int(serverPortConfigKey, 0, "Server port")
-	rootCmd.Flags().StringSlice("server.token", nil, "Allowed API access tokens")
 	rootCmd.Flags().StringToString("columns", nil, "columns to use")
 
 	cobra.CheckErr(viper.BindPFlags(rootCmd.Flags()))
@@ -102,7 +100,6 @@ func preRun(_ *cobra.Command, _ []string) error {
 
 func run(_ *cobra.Command, _ []string) error {
 	var (
-		accessToken   = viper.GetStringSlice("server.token")
 		psqlHost      = viper.GetString("postgres.host")
 		psqlPort      = viper.GetInt(postgresPortConfigKey)
 		psqlUsername  = viper.GetString("postgres.username")
@@ -146,18 +143,10 @@ func run(_ *cobra.Command, _ []string) error {
 	if err != nil {
 		return err
 	}
-	var authenticator auth.Authenticator
-	if len(accessToken) > 0 {
-		logger.Info("Using authentication", "tokens", len(accessToken))
-		authenticator = auth.Static(accessToken...)
-	} else {
-		logger.Info("Not using authentication")
-		authenticator = auth.AlwaysAllow()
-	}
 	httpServer := graceful.Shutdown{
 		Server: &http.Server{
 			Addr:              fmt.Sprintf(":%d", viper.GetInt(serverPortConfigKey)),
-			Handler:           server.New(svc, columns, authenticator, logger),
+			Handler:           server.New(svc, columns, logger),
 			ReadHeaderTimeout: 5 * time.Second,
 		},
 		ShutdownTimeout: 5 * time.Second,
