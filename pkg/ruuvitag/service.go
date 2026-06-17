@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"slices"
 	"strings"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -97,7 +98,7 @@ func (s *service) Latest(ctx context.Context, columns []string, names []string, 
 		return
 	}
 	if len(columns) == 0 {
-		columns = QueryColumns
+		columns = slices.Clone(QueryColumns)
 	}
 	queryColumns := make([]string, 0, len(columns)+len(MandatoryColumns))
 	queryColumns = append(queryColumns, columns...)
