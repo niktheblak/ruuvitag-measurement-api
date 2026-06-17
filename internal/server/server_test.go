@@ -3,7 +3,6 @@ package server
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -11,12 +10,9 @@ import (
 	"time"
 
 	"github.com/niktheblak/ruuvitag-common/pkg/sensor"
-	"github.com/niktheblak/web-common/pkg/auth"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-const testAccessToken = "a65cd12f9bba453" //nolint:gosec
 
 type mockService struct {
 	Response []sensor.Fields
@@ -47,6 +43,7 @@ func TestServe(t *testing.T) {
 	svc := &mockService{
 		Response: []sensor.Fields{
 			{
+				Addr:              sensor.StringPointer("31:1a:a3:af:72:93"),
 				Timestamp:         time.Date(2020, time.December, 10, 12, 10, 39, 0, time.UTC),
 				Name:              sensor.StringPointer("Living Room"),
 				Temperature:       sensor.Float64Pointer(23.5),
@@ -60,16 +57,14 @@ func TestServe(t *testing.T) {
 		},
 		Location: time.UTC,
 	}
-	srv := New(svc, sensor.DefaultColumnMap, auth.Static(testAccessToken), nil)
-	t.Run("with token", func(t *testing.T) {
+	srv := New(svc, sensor.DefaultColumnMap, nil)
+	t.Run("get latest", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/", nil)
-		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", testAccessToken))
 		w := httptest.NewRecorder()
 		srv.ServeHTTP(w, req)
 		require.Equal(t, http.StatusOK, w.Code)
-		m := decode(t, w.Body)
-		require.Contains(t, m, "Living Room")
-		lr := m["Living Room"]
+		res := decode(t, w.Body)
+		lr := res.Series[0].Measurements[0]
 		assert.Equal(t, "2020-12-10T12:10:39Z", lr["time"])
 		assert.Equal(t, 23.5, lr["temperature"])
 		assert.Equal(t, 60.0, lr["humidity"])
@@ -77,30 +72,22 @@ func TestServe(t *testing.T) {
 		assert.Equal(t, 102.0, lr["movement_counter"])
 		assert.Equal(t, 71.0, lr["measurement_number"])
 	})
-	t.Run("without token", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/", nil)
-		w := httptest.NewRecorder()
-		srv.ServeHTTP(w, req)
-		assert.Equal(t, http.StatusForbidden, w.Code)
-	})
 	t.Run("timezone", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/?tz=Europe/Helsinki", nil)
-		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", testAccessToken))
 		w := httptest.NewRecorder()
 		srv.ServeHTTP(w, req)
 		require.Equal(t, http.StatusOK, w.Code)
 		res := decode(t, w.Body)
-		require.Contains(t, res, "Living Room")
-		lr := res["Living Room"]
+		lr := res.Series[0].Measurements[0]
 		assert.Equal(t, "2020-12-10T14:10:39+02:00", lr["time"])
 	})
 }
 
-func decode(t *testing.T, r io.Reader) map[string]map[string]any {
+func decode(t *testing.T, r io.Reader) response {
 	dec := json.NewDecoder(r)
-	results := make(map[string]map[string]any)
-	if err := dec.Decode(&results); err != nil {
+	var res response
+	if err := dec.Decode(&res); err != nil {
 		t.Fatal(err)
 	}
-	return results
+	return res
 }
