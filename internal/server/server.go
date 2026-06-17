@@ -12,7 +12,7 @@ import (
 	"github.com/niktheblak/ruuvitag-measurement-api/pkg/ruuvitag"
 )
 
-func New(service ruuvitag.Service, columns map[string]string, logger *slog.Logger) http.Handler {
+func New(service ruuvitag.Service, logger *slog.Logger) http.Handler {
 	if logger == nil {
 		logger = slog.New(slog.NewTextHandler(io.Discard, nil))
 	}
@@ -22,6 +22,6 @@ func New(service ruuvitag.Service, columns map[string]string, logger *slog.Logge
 		defer cancel()
 		return service.Ping(ctx)
 	}, logger))
-	mux.Handle("/", latestHandler(service, columns, logger))
+	mux.Handle("/", latestHandler(service, logger))
 	return mux
 }

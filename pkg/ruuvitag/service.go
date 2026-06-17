@@ -2,37 +2,64 @@ package ruuvitag
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
+	"strings"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/niktheblak/ruuvitag-common/pkg/sensor"
 )
+
+var QueryColumns = []string{
+	"temperature",
+	"humidity",
+	"pressure",
+	"acceleration_x",
+	"acceleration_y",
+	"acceleration_z",
+	"movement_counter",
+	"measurement_number",
+	"dew_point",
+	"battery_voltage",
+	"wet_bulb",
+}
+
+var ErrInvalidColumn = errors.New("invalid column")
+
+var MandatoryColumns = []string{
+	"time",
+	"mac",
+}
+
+var queryColumnMap map[string]struct{}
+
+func init() {
+	queryColumnMap = make(map[string]struct{})
+	for _, column := range QueryColumns {
+		queryColumnMap[column] = struct{}{}
+	}
+}
 
 type Config struct {
 	ConnString string
 	Table      string
 	NameTable  string
-	NameColumn string
-	Columns    map[string]string
 	Logger     *slog.Logger
 }
 
 type Service interface {
 	// Latest returns n latest measurements from all RuuviTags.
-	Latest(ctx context.Context, n int, columns []string, names []string) (measurements map[string][]sensor.Fields, err error)
+	Latest(ctx context.Context, columns []string, names []string, count int) (measurements map[string][]Fields, err error)
 	// Ping verifies the database connection is still alive.
 	Ping(ctx context.Context) error
 	io.Closer
 }
 
 type service struct {
-	dbpool       *pgxpool.Pool
-	columnMap    map[string]string
-	columnValues map[string]interface{}
-	qb           *QueryBuilder
-	logger       *slog.Logger
+	dbpool *pgxpool.Pool
+	cfg    Config
+	logger *slog.Logger
 }
 
 // New creates a new instance of the service using the given config
@@ -40,44 +67,16 @@ func New(ctx context.Context, cfg Config) (Service, error) {
 	if cfg.Logger == nil {
 		cfg.Logger = slog.New(slog.NewTextHandler(io.Discard, nil))
 	}
-	cfg.Logger.LogAttrs(ctx, slog.LevelDebug, "Columns", slog.Any("column_map", cfg.Columns))
 	dbpool, err := pgxpool.New(ctx, cfg.ConnString)
 	if err != nil {
 		return nil, err
 	}
 	s := &service{
-		dbpool:    dbpool,
-		columnMap: cfg.Columns,
-		qb: &QueryBuilder{
-			Table:      cfg.Table,
-			NameTable:  cfg.NameTable,
-			NameColumn: cfg.NameColumn,
-			Columns:    cfg.Columns,
-		},
+		dbpool: dbpool,
+		cfg:    cfg,
 		logger: cfg.Logger,
 	}
-	s.columnValues = make(map[string]interface{})
-	for _, c := range cfg.Columns {
-		s.columnValues[c] = struct{}{}
-	}
 	return s, nil
-}
-
-func (s *service) validColumns(columns []string) ([]string, error) {
-	if len(columns) == 0 {
-		// no columns explicitly requested; return all configured columns
-		for _, c := range s.columnMap {
-			columns = append(columns, c)
-		}
-		return columns, nil
-	}
-	for _, c := range columns {
-		_, ok := s.columnValues[c]
-		if !ok {
-			return nil, fmt.Errorf("%w: %s", sensor.ErrInvalidColumn, c)
-		}
-	}
-	return columns, nil
 }
 
 func (s *service) Ping(ctx context.Context) error {
@@ -92,25 +91,28 @@ func (s *service) Close() error {
 	return nil
 }
 
-func (s *service) Latest(ctx context.Context, n int, columns []string, names []string) (measurements map[string][]sensor.Fields, err error) {
-	columns, err = s.validColumns(columns)
+func (s *service) Latest(ctx context.Context, columns []string, names []string, count int) (measurements map[string][]Fields, err error) {
+	columns, err = validColumns(columns)
 	if err != nil {
 		return
 	}
+	queryColumns := make([]string, 0, len(columns)+len(MandatoryColumns))
+	queryColumns = append(queryColumns, columns...)
+	queryColumns = append(queryColumns, MandatoryColumns...)
 	var macs map[string]string
 	if len(names) == 0 {
-		macs, err = s.queryAllNames(ctx)
-		if err != nil {
-			return
-		}
+		macs, err = s.queryAllMACs(ctx)
 	} else {
-		macs, err = s.queryNames(ctx, names)
+		macs, err = s.queryMACs(ctx, names)
 	}
-	s.logger.LogAttrs(ctx, slog.LevelDebug, "Querying measurements from RuuviTags", slog.Any("names", macs))
-	measurements = make(map[string][]sensor.Fields)
+	if err != nil {
+		return
+	}
+	s.logger.LogAttrs(ctx, slog.LevelDebug, "Querying measurements from RuuviTags", slog.Any("macs", macs))
+	measurements = make(map[string][]Fields)
 	for name, mac := range macs {
-		var ms []sensor.Fields
-		ms, err = s.queryMeasurements(ctx, columns, mac, n)
+		var ms []Fields
+		ms, err = s.queryMeasurements(ctx, queryColumns, mac, count)
 		if err != nil {
 			return
 		}
@@ -119,19 +121,22 @@ func (s *service) Latest(ctx context.Context, n int, columns []string, names []s
 	return
 }
 
-func (s *service) queryAllNames(ctx context.Context) (map[string]string, error) {
-	q := s.qb.AllNames()
-	s.logger.LogAttrs(ctx, slog.LevelDebug, "RuuviTag all names query", slog.String("query", q))
-	return s.runNamesQuery(ctx, q)
+func (s *service) queryAllMACs(ctx context.Context) (map[string]string, error) {
+	q := fmt.Sprintf(`SELECT mac, name FROM %s`, s.cfg.NameTable)
+	return s.runMACsQuery(ctx, q)
 }
 
-func (s *service) queryNames(ctx context.Context, names []string) (map[string]string, error) {
-	q := s.qb.Names(names)
-	s.logger.LogAttrs(ctx, slog.LevelDebug, "RuuviTag names query", slog.String("query", q))
-	return s.runNamesQuery(ctx, q)
+func (s *service) queryMACs(ctx context.Context, names []string) (map[string]string, error) {
+	quotedNames := make([]string, 0, len(names))
+	for _, n := range names {
+		quotedNames = append(quotedNames, fmt.Sprintf(`'%s'`, n))
+	}
+	queryNames := strings.Join(quotedNames, ",")
+	q := fmt.Sprintf(`SELECT mac, name FROM %s WHERE name = ANY(ARRAY[%s])`, s.cfg.NameTable, queryNames)
+	return s.runMACsQuery(ctx, q)
 }
 
-func (s *service) runNamesQuery(ctx context.Context, q string) (map[string]string, error) {
+func (s *service) runMACsQuery(ctx context.Context, q string) (map[string]string, error) {
 	rows, err := s.dbpool.Query(ctx, q)
 	if err != nil {
 		return nil, err
@@ -148,25 +153,44 @@ func (s *service) runNamesQuery(ctx context.Context, q string) (map[string]strin
 	return namesMap, rows.Err()
 }
 
-func (s *service) queryMeasurements(ctx context.Context, columns []string, mac string, n int) ([]sensor.Fields, error) {
-	q, err := s.qb.Latest(columns, n)
-	if err != nil {
-		return nil, err
-	}
+func (s *service) queryMeasurements(ctx context.Context, columns []string, mac string, count int) ([]Fields, error) {
+	columsParam := strings.Join(columns, ",")
+	q := fmt.Sprintf(`SELECT %s
+		FROM %s
+		WHERE mac = $1
+		ORDER BY time DESC
+		LIMIT %d`, columsParam, s.cfg.Table, count)
 	s.logger.LogAttrs(ctx, slog.LevelDebug, "RuuviTag values query", slog.String("mac", mac), slog.String("query", q))
 	rows, err := s.dbpool.Query(ctx, q, mac)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var measurements []sensor.Fields
+	var measurements []Fields
 	for rows.Next() {
-		f, err := s.qb.Collect(rows, columns)
+		f, err := Collect(rows, columns)
 		if err != nil {
 			return nil, err
 		}
-		s.logger.LogAttrs(ctx, slog.LevelDebug, "Returned RuuviTag measurement", slog.Any("measurement", sensor.FromFields(f)))
+		s.logger.LogAttrs(ctx, slog.LevelDebug, "Returned RuuviTag measurement", slog.Any("measurement", f))
 		measurements = append(measurements, f)
 	}
 	return measurements, rows.Err()
+}
+
+func validColumns(columns []string) ([]string, error) {
+	dedup := make(map[string]struct{})
+	var valid []string
+	for _, c := range columns {
+		_, ok := queryColumnMap[c]
+		if !ok {
+			return nil, fmt.Errorf("%w: %s", ErrInvalidColumn, c)
+		}
+		_, seen := dedup[c]
+		if !seen {
+			valid = append(valid, c)
+			dedup[c] = struct{}{}
+		}
+	}
+	return valid, nil
 }

@@ -8,19 +8,14 @@ import (
 	"log/slog"
 	"net/http"
 	"regexp"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/niktheblak/ruuvitag-common/pkg/columnmap"
-	"github.com/niktheblak/ruuvitag-common/pkg/sensor"
-
 	"github.com/niktheblak/ruuvitag-measurement-api/pkg/ruuvitag"
 )
 
-func latestHandler(service ruuvitag.Service, columnMap map[string]string, logger *slog.Logger) http.Handler {
-	defaultColumns := []string{columnMap["time"], columnMap["mac"]}
+func latestHandler(service ruuvitag.Service, logger *slog.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		loc, err := parseLocation(r.URL.Query().Get("tz"))
 		if err != nil {
@@ -42,10 +37,6 @@ func latestHandler(service ruuvitag.Service, columnMap map[string]string, logger
 			http.Error(w, "Invalid columns", http.StatusBadRequest)
 			return
 		}
-		if slices.Contains(columns, columnMap["name"]) {
-			http.Error(w, "Query must not contain colum \"name\"", http.StatusBadRequest)
-			return
-		}
 		names, err := parseCSV(r.URL.Query().Get("names"))
 		if err != nil {
 			http.Error(w, "Invalid names", http.StatusBadRequest)
@@ -53,14 +44,13 @@ func latestHandler(service ruuvitag.Service, columnMap map[string]string, logger
 		}
 		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 		defer cancel()
-		queryColumns := mergeColumns(columns, defaultColumns)
-		measurements, err := service.Latest(ctx, count, queryColumns, names)
+		measurements, err := service.Latest(ctx, columns, names, count)
 		switch {
 		case errors.Is(err, context.DeadlineExceeded):
 			logger.LogAttrs(r.Context(), slog.LevelError, "Timeout while querying measurements", slog.Any("error", err))
 			http.Error(w, "Timeout while querying measurements", http.StatusBadGateway)
 			return
-		case errors.Is(err, sensor.ErrInvalidColumn) || errors.Is(err, sensor.ErrMissingColumn):
+		case errors.Is(err, ruuvitag.ErrInvalidColumn):
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		case err == nil:
@@ -71,7 +61,7 @@ func latestHandler(service ruuvitag.Service, columnMap map[string]string, logger
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Cache-Control", "no-store, max-age=0")
-		resp := getLatest(measurements, count, columnMap, loc)
+		resp := fetchLatest(measurements, loc)
 		resp.Columns = columns
 		if err := json.NewEncoder(w).Encode(resp); err != nil {
 			logger.LogAttrs(r.Context(), slog.LevelError, "Error while writing output", slog.Any("error", err))
@@ -107,12 +97,12 @@ type response struct {
 }
 
 type seriesItem struct {
-	Name         string           `json:"name,omitempty"`
-	MAC          string           `json:"mac"`
-	Measurements []map[string]any `json:"measurements"`
+	Name         string            `json:"name,omitempty"`
+	MAC          string            `json:"mac"`
+	Measurements []ruuvitag.Fields `json:"measurements"`
 }
 
-func getLatest(measurements map[string][]sensor.Fields, count int, columnMap map[string]string, loc *time.Location) response {
+func fetchLatest(measurements map[string][]ruuvitag.Fields, loc *time.Location) response {
 	resp := response{
 		Timezone: loc.String(),
 	}
@@ -120,35 +110,14 @@ func getLatest(measurements map[string][]sensor.Fields, count int, columnMap map
 		item := seriesItem{
 			Name: k,
 		}
-		for i, m := range ms {
-			if i == count {
-				break
-			}
-			if m.Addr == nil {
-				panic("Mandatory field m.Addr is nil")
-			}
+		for _, m := range ms {
 			item.MAC = *m.Addr
+			m.Addr = nil // suppress MAC address from the series output
+			m.Name = nil // suppress name from the series output
 			m.Timestamp = m.Timestamp.In(loc)
-			fields := columnmap.TransformFields(columnMap, m)
-			delete(fields, columnMap["mac"])
-			item.Measurements = append(item.Measurements, fields)
+			item.Measurements = append(item.Measurements, m)
 		}
 		resp.Series = append(resp.Series, item)
 	}
 	return resp
-}
-
-func mergeColumns(a, b []string) []string {
-	m := make(map[string]interface{})
-	for _, c := range a {
-		m[c] = struct{}{}
-	}
-	for _, c := range b {
-		m[c] = struct{}{}
-	}
-	var r []string
-	for k := range m {
-		r = append(r, k)
-	}
-	return r
 }

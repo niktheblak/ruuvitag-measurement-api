@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/niktheblak/ruuvitag-common/pkg/sensor"
 	"github.com/niktheblak/web-common/pkg/graceful"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -18,8 +17,6 @@ import (
 	"github.com/niktheblak/ruuvitag-measurement-api/internal/server"
 	"github.com/niktheblak/ruuvitag-measurement-api/pkg/ruuvitag"
 )
-
-var DefaultColumns = sensor.DefaultColumnMap
 
 const (
 	postgresPortConfigKey = "postgres.port"
@@ -48,7 +45,7 @@ func init() {
 	cobra.OnInitialize(initConfig)
 
 	rootCmd.Flags().StringVarP(&cfgFile, "config", "c", "", "config file path")
-	rootCmd.Flags().StringVar(&logLevel, "loglevel", "", "log level")
+	rootCmd.Flags().StringVar(&logLevel, "log.level", "", "log level")
 
 	rootCmd.Flags().String("postgres.host", "", "host")
 	rootCmd.Flags().Int(postgresPortConfigKey, 0, "port")
@@ -58,13 +55,15 @@ func init() {
 	rootCmd.Flags().String("postgres.table", "", "table name")
 	rootCmd.Flags().String("postgres.name_table", "", "RuuviTag name table name")
 	rootCmd.Flags().Int(serverPortConfigKey, 0, "Server port")
-	rootCmd.Flags().StringToString("columns", nil, "columns to use")
 
 	cobra.CheckErr(viper.BindPFlags(rootCmd.Flags()))
 
-	viper.SetDefault("loglevel", "info")
+	viper.SetDefault("log.level", "info")
 	viper.SetDefault(postgresPortConfigKey, "5432")
 	viper.SetDefault(serverPortConfigKey, 8080)
+	viper.SetDefault("postgres.database", "ruuvitag")
+	viper.SetDefault("postgres.table", "sensor_data")
+	viper.SetDefault("postgres.name_table", "sensor_names")
 }
 
 func initConfig() {
@@ -86,7 +85,7 @@ func initConfig() {
 
 func preRun(_ *cobra.Command, _ []string) error {
 	level := new(slog.LevelVar)
-	if err := level.UnmarshalText([]byte(viper.GetString("loglevel"))); err != nil {
+	if err := level.UnmarshalText([]byte(viper.GetString("log.level"))); err != nil {
 		return err
 	}
 	h := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: level})
@@ -107,11 +106,7 @@ func run(_ *cobra.Command, _ []string) error {
 		psqlDatabase  = viper.GetString("postgres.database")
 		psqlTable     = viper.GetString("postgres.table")
 		psqlNameTable = viper.GetString("postgres.name_table")
-		columns       = viper.GetStringMapString("columns")
 	)
-	if len(columns) == 0 {
-		columns = DefaultColumns
-	}
 	psqlInfo := fmt.Sprintf(
 		"host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
 		psqlHost,
@@ -120,8 +115,9 @@ func run(_ *cobra.Command, _ []string) error {
 		psqlPassword,
 		psqlDatabase,
 	)
+	ctx := context.Background()
 	logger.LogAttrs(
-		context.TODO(),
+		ctx,
 		slog.LevelInfo,
 		"Connecting to PostgreSQL",
 		slog.String("host", psqlHost),
@@ -129,15 +125,11 @@ func run(_ *cobra.Command, _ []string) error {
 		slog.String("database", psqlDatabase),
 		slog.String("table", psqlTable),
 		slog.String("name_table", psqlNameTable),
-		slog.Any("columns", columns),
 	)
-	ctx := context.Background()
 	svc, err := ruuvitag.New(ctx, ruuvitag.Config{
 		ConnString: psqlInfo,
 		Table:      psqlTable,
 		NameTable:  psqlNameTable,
-		NameColumn: "name",
-		Columns:    columns,
 		Logger:     logger,
 	})
 	if err != nil {
@@ -146,7 +138,7 @@ func run(_ *cobra.Command, _ []string) error {
 	httpServer := graceful.Shutdown{
 		Server: &http.Server{
 			Addr:              fmt.Sprintf(":%d", viper.GetInt(serverPortConfigKey)),
-			Handler:           server.New(svc, columns, logger),
+			Handler:           server.New(svc, logger),
 			ReadHeaderTimeout: 5 * time.Second,
 		},
 		ShutdownTimeout: 5 * time.Second,
