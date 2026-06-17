@@ -5,14 +5,12 @@ WORKDIR /go/src/app
 COPY go.mod go.sum ./
 RUN go mod download && go mod verify
 COPY . .
-RUN go build -v -o /go/bin/app
+RUN CGO_ENABLED=0 go build -v -trimpath -ldflags="-s -w" -o /go/bin/app
 
-FROM ubuntu:26.04
-
-RUN apt-get update \
-    && DEBIAN_FRONTEND=noninteractive apt-get install -y -q tzdata \
-    && apt-get clean
+FROM gcr.io/distroless/static-debian13:nonroot
 
 COPY --from=build /go/bin/app /
+
+USER nonroot:nonroot
 
 ENTRYPOINT ["/app"]
