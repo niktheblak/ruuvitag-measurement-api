@@ -96,6 +96,9 @@ func (s *service) Latest(ctx context.Context, columns []string, names []string, 
 	if err != nil {
 		return
 	}
+	if len(columns) == 0 {
+		columns = QueryColumns
+	}
 	queryColumns := make([]string, 0, len(columns)+len(MandatoryColumns))
 	queryColumns = append(queryColumns, columns...)
 	queryColumns = append(queryColumns, MandatoryColumns...)
@@ -184,7 +187,7 @@ func validColumns(columns []string) ([]string, error) {
 	for _, c := range columns {
 		_, ok := queryColumnMap[c]
 		if !ok {
-			return nil, fmt.Errorf("%w: %s", ErrInvalidColumn, c)
+			return nil, ErrInvalidColumn
 		}
 		_, seen := dedup[c]
 		if !seen {
