@@ -71,7 +71,7 @@ func latestHandler(service ruuvitag.Service, columnMap map[string]string, logger
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Cache-Control", "no-store, max-age=0")
-		resp := newest(measurements, count, columnMap, loc)
+		resp := getLatest(measurements, count, columnMap, loc)
 		resp.Columns = columns
 		if err := json.NewEncoder(w).Encode(resp); err != nil {
 			logger.LogAttrs(r.Context(), slog.LevelError, "Error while writing output", slog.Any("error", err))
@@ -112,7 +112,7 @@ type seriesItem struct {
 	Measurements []map[string]any `json:"measurements"`
 }
 
-func newest(measurements map[string][]sensor.Fields, count int, columnMap map[string]string, loc *time.Location) response {
+func getLatest(measurements map[string][]sensor.Fields, count int, columnMap map[string]string, loc *time.Location) response {
 	resp := response{
 		Timezone: loc.String(),
 	}
@@ -129,7 +129,9 @@ func newest(measurements map[string][]sensor.Fields, count int, columnMap map[st
 			}
 			item.MAC = *m.Addr
 			m.Timestamp = m.Timestamp.In(loc)
-			item.Measurements = append(item.Measurements, columnmap.TransformFields(columnMap, m))
+			fields := columnmap.TransformFields(columnMap, m)
+			delete(fields, columnMap["mac"])
+			item.Measurements = append(item.Measurements, fields)
 		}
 		resp.Series = append(resp.Series, item)
 	}
