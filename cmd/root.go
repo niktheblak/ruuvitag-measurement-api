@@ -5,12 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"os"
 	"strings"
-	"time"
 
-	"github.com/niktheblak/web-common/pkg/graceful"
+	"github.com/enrichman/httpgrace"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
@@ -135,14 +133,7 @@ func run(_ *cobra.Command, _ []string) error {
 	if err != nil {
 		return err
 	}
-	httpServer := graceful.Shutdown{
-		Server: &http.Server{
-			Addr:              fmt.Sprintf(":%d", viper.GetInt(serverPortConfigKey)),
-			Handler:           server.New(svc, logger),
-			ReadHeaderTimeout: 5 * time.Second,
-		},
-		ShutdownTimeout: 5 * time.Second,
-		Signals:         []os.Signal{os.Interrupt},
-	}
-	return errors.Join(httpServer.Serve(ctx), svc.Close())
+	srv := httpgrace.NewServer(server.New(svc, logger), httpgrace.WithLogger(logger))
+	addr := fmt.Sprintf(":%d", viper.GetInt(serverPortConfigKey))
+	return errors.Join(srv.ListenAndServe(addr), svc.Close())
 }
